@@ -110,6 +110,11 @@ button:disabled {
     background: #111;
   }
 
+  #root {
+    display: grid;
+    place-items: center;
+  }
+
   .app {
     width: min(430px, 100vw);
     height: min(932px, 100dvh);
