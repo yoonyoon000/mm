@@ -37,11 +37,11 @@ function angleDistance(a, b) {
 function roastColor(level) {
   const color = new THREE.Color('#fff6e9');
   if (level < 16) return color;
-  if (level < 36) return color.lerp(new THREE.Color('#ffe0a5'), (level - 16) / 20);
-  if (level < 61) return new THREE.Color('#ffe0a5').lerp(new THREE.Color('#d58b42'), (level - 36) / 25);
-  if (level < 81) return new THREE.Color('#d58b42').lerp(new THREE.Color('#744126'), (level - 61) / 20);
-  if (level < 96) return new THREE.Color('#744126').lerp(new THREE.Color('#211410'), (level - 81) / 15);
-  return new THREE.Color('#080808');
+  if (level < 36) return color.lerp(new THREE.Color('#ffe7b8'), (level - 16) / 20);
+  if (level < 61) return new THREE.Color('#ffe7b8').lerp(new THREE.Color('#d89a4c'), (level - 36) / 25);
+  if (level < 81) return new THREE.Color('#d89a4c').lerp(new THREE.Color('#7a4427'), (level - 61) / 20);
+  if (level < 96) return new THREE.Color('#7a4427').lerp(new THREE.Color('#2b1912'), (level - 81) / 15);
+  return new THREE.Color('#161616');
 }
 
 function seeded(index, salt) {
@@ -133,11 +133,10 @@ function makeFacePanel(index) {
     new THREE.PlaneGeometry(0.86, 0.86, 4, 4),
     new THREE.MeshStandardMaterial({
       color: '#fff6e9',
-      roughness: 0.92,
+      roughness: 0.88,
       metalness: 0,
-      transparent: true,
-      opacity: 0.72,
-      side: THREE.DoubleSide,
+      transparent: false,
+      side: THREE.FrontSide,
     }),
   );
   panel.position.set(Math.sin(faceAngle) * 0.47, 0, Math.cos(faceAngle) * 0.47);
@@ -149,8 +148,8 @@ function makeFacePanel(index) {
   for (let i = 0; i < 9; i += 1) {
     const spot = new THREE.Mesh(
       spotGeometry,
-      new THREE.MeshBasicMaterial({
-        color: '#17100d',
+    new THREE.MeshBasicMaterial({
+        color: '#5d2d18',
         transparent: true,
         opacity: 0,
         depthWrite: false,
@@ -203,18 +202,21 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
 
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x070302, 0.18);
-    const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 80);
-    camera.position.set(0, 1.0, 4.35);
-    camera.lookAt(0, -0.72, -0.85);
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 80);
+    camera.position.set(0.42, 0.82, 4.25);
+    camera.lookAt(-0.08, -0.7, -1.0);
 
-    const ambient = new THREE.AmbientLight(0x3a251b, 0.72);
+    const ambient = new THREE.AmbientLight(0xffead5, 1.08);
     scene.add(ambient);
-    const fireLight = new THREE.PointLight(0xff7b2d, 4.2, 8, 1.25);
+    const fireLight = new THREE.PointLight(0xff7b2d, 4.0, 8, 1.25);
     fireLight.position.set(0, -0.25, -1.28);
     scene.add(fireLight);
-    const softLight = new THREE.PointLight(0xffc778, 1.35, 4, 2);
-    softLight.position.set(0.6, 0.95, 1.25);
+    const softLight = new THREE.PointLight(0xffd7a0, 2.2, 5.5, 2);
+    softLight.position.set(0.7, 1.25, 1.6);
     scene.add(softLight);
+    const fillLight = new THREE.DirectionalLight(0xfff3df, 1.65);
+    fillLight.position.set(-1.6, 2.2, 2.8);
+    scene.add(fillLight);
 
     const fireVideo = document.createElement('video');
     fireVideo.src = './fire.mp4';
@@ -249,11 +251,13 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
     const skewerGroup = new THREE.Group();
     scene.add(skewerGroup);
 
+    skewerGroup.rotation.set(-0.42, 0.12, 0.3);
+
     const stick = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.025, 0.04, 5.4, 18),
+      new THREE.CylinderGeometry(0.014, 0.02, 5.45, 18),
       new THREE.MeshStandardMaterial({
-        color: '#8a5a32',
-        roughness: 0.86,
+        color: '#bd8751',
+        roughness: 0.76,
         metalness: 0,
       }),
     );
@@ -275,39 +279,39 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
     }
 
     const tip = new THREE.Mesh(
-      new THREE.ConeGeometry(0.07, 0.24, 18),
-      new THREE.MeshStandardMaterial({ color: '#6e4729', roughness: 0.78 }),
+      new THREE.ConeGeometry(0.045, 0.2, 18),
+      new THREE.MeshStandardMaterial({ color: '#9f6738', roughness: 0.78 }),
     );
     tip.rotation.x = -Math.PI / 2;
     tip.position.set(0, -0.82, -1.68);
     skewerGroup.add(tip);
 
-    const mallowGroup = new THREE.Group();
-    mallowGroup.position.set(0, -0.82, -1.32);
-    mallowGroup.scale.set(1.06, 0.92, 0.9);
-    skewerGroup.add(mallowGroup);
+    const mallowPivot = new THREE.Group();
+    mallowPivot.position.set(0, -0.82, -1.32);
+    mallowPivot.scale.set(1.06, 0.94, 0.92);
+    skewerGroup.add(mallowPivot);
 
     const core = new THREE.Mesh(
-      new RoundedBoxGeometry(0.92, 0.88, 0.92, 8, 0.22),
+      new RoundedBoxGeometry(0.96, 0.86, 0.96, 9, 0.24),
       new THREE.MeshStandardMaterial({
-        color: '#fff4e7',
-        roughness: 0.96,
+        color: '#fff8ec',
+        roughness: 0.9,
         metalness: 0,
-        emissive: '#3a1906',
-        emissiveIntensity: 0.08,
+        emissive: '#5a2b0d',
+        emissiveIntensity: 0.04,
       }),
     );
-    mallowGroup.add(core);
+    mallowPivot.add(core);
 
     const panels = FACE_ANGLES.map((_, index) => makeFacePanel(index));
-    panels.forEach(({ group }) => mallowGroup.add(group));
+    panels.forEach(({ group }) => mallowPivot.add(group));
 
     const state = {
       renderer,
       scene,
       camera,
       skewerGroup,
-      mallowGroup,
+      mallowPivot,
       core,
       panels,
       fireLight,
@@ -318,10 +322,10 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
         active: false,
         start: 0,
         duration: 1300,
-        auto: 0,
         from: 0,
         to: 0,
         current: 0,
+        auto: 0,
       },
       clock: new THREE.Clock(),
     };
@@ -353,22 +357,17 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
       }
 
       const handNoise = Math.sin(elapsed * 1.7) * 0.008 + Math.sin(elapsed * 3.9) * 0.004;
-      state.skewerGroup.rotation.set(
-        -0.38 + Math.sin(elapsed * 2.2) * 0.012,
-        turn.auto + turn.current + handNoise,
-        0.16 + Math.sin(elapsed * 1.3) * 0.014,
-      );
-      state.skewerGroup.position.set(Math.sin(elapsed * 1.8) * 0.012, Math.cos(elapsed * 1.2) * 0.01, 0);
-      state.mallowGroup.scale.set(
+      state.mallowPivot.rotation.set(0, 0, turn.auto + turn.current + handNoise);
+      state.mallowPivot.scale.set(
         1.06 + Math.sin(elapsed * 2.8) * 0.012,
-        0.92 + Math.cos(elapsed * 2.2) * 0.01,
-        0.9 + Math.sin(elapsed * 2.5) * 0.012,
+        0.94 + Math.cos(elapsed * 2.2) * 0.01,
+        0.92 + Math.sin(elapsed * 2.5) * 0.012,
       );
 
       if (eatenRef.current) {
-        state.mallowGroup.visible = false;
+        state.mallowPivot.visible = false;
       } else {
-        state.mallowGroup.visible = true;
+        state.mallowPivot.visible = true;
       }
 
       const hottest = Math.max(...roastsRef.current);
@@ -378,16 +377,15 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
       state.panels.forEach(({ panel, spots }, index) => {
         const roast = roastsRef.current[index];
         panel.material.color.copy(roastColor(roast));
-        panel.material.opacity = roast > 15 ? 0.82 : 0.38;
         spots.forEach((spot, spotIndex) => {
           const visible = clamp((roast - 22 - spotIndex * 2) / 45, 0, 0.86);
           spot.material.opacity = visible;
-          spot.material.color.set(roast > 82 ? '#030303' : roast > 58 ? '#24120d' : '#6b321a');
+          spot.material.color.set(roast > 82 ? '#080504' : roast > 58 ? '#24120d' : '#7a3a1d');
         });
       });
 
       state.fireLight.intensity = 3.7 + Math.sin(elapsed * 11) * 0.55 + Math.random() * 0.2;
-      state.softLight.intensity = 1.1 + clamp(hottest / 100, 0, 1) * 0.5;
+      state.softLight.intensity = 1.8 + clamp(hottest / 100, 0, 1) * 0.45;
       state.fireTexture.needsUpdate = true;
       renderer.render(scene, camera);
       frame = requestAnimationFrame(render);
