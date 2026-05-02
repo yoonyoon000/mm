@@ -188,7 +188,6 @@ function ThreeRoaster({ sideRoasts, isEaten, turnSignal, onTurnDone }) {
   const eatenRef = useRef(isEaten);
   const turnSignalRef = useRef(turnSignal);
   const onTurnDoneRef = useRef(onTurnDone);
-  const [webglFailed, setWebglFailed] = useState(false);
 
   useEffect(() => {
     roastsRef.current = sideRoasts;
@@ -206,15 +205,7 @@ function ThreeRoaster({ sideRoasts, isEaten, turnSignal, onTurnDone }) {
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
 
-    let renderer;
-    try {
-      renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
-    } catch (error) {
-      setWebglFailed(true);
-      return undefined;
-    }
-
-    setWebglFailed(false);
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setClearColor(0x050302, 0);
 
@@ -436,38 +427,7 @@ function ThreeRoaster({ sideRoasts, isEaten, turnSignal, onTurnDone }) {
     state.turn.to = state.turn.current + Math.PI * 0.78;
   }, [turnSignal]);
 
-  const avgRoast = sideRoasts.reduce((sum, value) => sum + value, 0) / sideRoasts.length;
-  const hotRoast = Math.max(...sideRoasts);
-  const fallbackColor = roastColor(avgRoast * 0.52).getStyle();
-  const fallbackSpotOpacity = clamp((hotRoast - 8) / 34, 0, 0.92);
-
-  return (
-    <div className={`scene-wrap${webglFailed ? ' webgl-failed' : ''}`}>
-      <div className="fallback-scene" aria-hidden="true">
-        <video className="fallback-fire" src="./fire.mp4" autoPlay muted loop playsInline />
-        <div className="fallback-glow" />
-        {!isEaten && (
-          <>
-            <div className="fallback-skewer" />
-            <div
-              className={`fallback-marshmallow${isTurningClass(turnSignal, webglFailed)}`}
-              style={{ backgroundColor: fallbackColor }}
-            >
-              <span style={{ opacity: fallbackSpotOpacity }} />
-              <span style={{ opacity: fallbackSpotOpacity * 0.78 }} />
-              <span style={{ opacity: fallbackSpotOpacity * 0.65 }} />
-            </div>
-          </>
-        )}
-      </div>
-      <canvas className="three-canvas" ref={canvasRef} aria-label="3D marshmallow roasting scene" />
-    </div>
-  );
-}
-
-function isTurningClass(turnSignal, webglFailed) {
-  if (!webglFailed) return '';
-  return turnSignal > 0 ? ' fallback-turned' : '';
+  return <canvas className="three-canvas" ref={canvasRef} aria-label="3D marshmallow roasting scene" />;
 }
 
 function App() {
