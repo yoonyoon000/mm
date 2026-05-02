@@ -9,6 +9,10 @@ const FACE_ANGLES = [0, 60, 120, 180, 240, 300];
 const AUTO_ROTATION_SPEED = 0.18;
 const MANUAL_ROTATION_SPEED = 1.35;
 const SIDE_HEAT_ANGLE = 90;
+const LOCAL_Z = new THREE.Vector3(0, 0, 1);
+const LOCAL_Y = new THREE.Vector3(0, 1, 0);
+const SKEWER_AXIS = new THREE.Vector3(0.09, 0.26, -1).normalize();
+const MARSHMALLOW_CENTER = new THREE.Vector3(0.05, -0.74, -1.2);
 const STAGES = [
   { key: 'raw', min: 0, max: 15, label: 'raw', bite: '차갑고 퍽퍽하다...' },
   { key: 'warm', min: 16, max: 35, label: 'warm', bite: '조금 따뜻하다.' },
@@ -46,6 +50,12 @@ function roastColor(level) {
 
 function seeded(index, salt) {
   return Math.abs(Math.sin(index * 37.21 + salt * 11.73) * 43758.5453) % 1;
+}
+
+function axisOffset(axis, amount, yAmount = 0) {
+  const side = new THREE.Vector3().crossVectors(axis, new THREE.Vector3(0, 1, 0)).normalize();
+  const up = new THREE.Vector3().crossVectors(side, axis).normalize();
+  return side.multiplyScalar(amount).add(up.multiplyScalar(yAmount));
 }
 
 function useEffectAudio(soundEnabled) {
@@ -203,13 +213,13 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x070302, 0.18);
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 80);
-    camera.position.set(0.42, 0.82, 4.25);
-    camera.lookAt(-0.08, -0.7, -1.0);
+    camera.position.set(0.7, 0.45, 3.6);
+    camera.lookAt(0.25, -0.35, 0);
 
     const ambient = new THREE.AmbientLight(0xffead5, 1.08);
     scene.add(ambient);
     const fireLight = new THREE.PointLight(0xff7b2d, 4.0, 8, 1.25);
-    fireLight.position.set(0, -0.25, -1.28);
+    fireLight.position.set(0.05, -0.28, -1.82);
     scene.add(fireLight);
     const softLight = new THREE.PointLight(0xffd7a0, 2.2, 5.5, 2);
     softLight.position.set(0.7, 1.25, 1.6);
@@ -228,15 +238,15 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
     const fireTexture = new THREE.VideoTexture(fireVideo);
     fireTexture.colorSpace = THREE.SRGBColorSpace;
     const firePlane = new THREE.Mesh(
-      new THREE.PlaneGeometry(6.4, 4.2),
+      new THREE.PlaneGeometry(6.8, 4.8),
       new THREE.MeshBasicMaterial({ map: fireTexture, transparent: true, opacity: 0.9 }),
     );
-    firePlane.position.set(0, -0.22, -2.38);
-    firePlane.scale.set(1.1, 1.1, 1);
+    firePlane.position.set(0.12, -0.18, -2.86);
+    firePlane.scale.set(1.2, 1.2, 1);
     scene.add(firePlane);
 
     const glow = new THREE.Mesh(
-      new THREE.PlaneGeometry(5.8, 3.6),
+      new THREE.PlaneGeometry(6.2, 4.0),
       new THREE.MeshBasicMaterial({
         color: 0xff6328,
         transparent: true,
@@ -245,13 +255,13 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
         depthWrite: false,
       }),
     );
-    glow.position.set(0, -0.24, -2.28);
+    glow.position.set(0.12, -0.2, -2.76);
     scene.add(glow);
 
     const skewerGroup = new THREE.Group();
     scene.add(skewerGroup);
-
-    skewerGroup.rotation.set(-0.42, 0.12, 0.3);
+    skewerGroup.position.set(-0.28, -0.39, 0.75);
+    skewerGroup.rotation.set(-0.38, -0.27, 0.12);
 
     const stick = new THREE.Mesh(
       new THREE.CylinderGeometry(0.014, 0.02, 5.45, 18),
@@ -262,7 +272,7 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
       }),
     );
     stick.rotation.x = Math.PI / 2;
-    stick.position.set(0, -0.82, 1.08);
+    stick.position.set(0, -0.78, 0.82);
     stick.scale.set(1, 1, 1);
     skewerGroup.add(stick);
 
@@ -273,7 +283,7 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
         new THREE.MeshBasicMaterial({ color: 0x2e170c }),
       );
       line.rotation.x = Math.PI / 2;
-      line.position.set((i - 3) * 0.006, -0.82 + (i % 2) * 0.006, 1.2);
+      line.position.set((i - 3) * 0.006, -0.78 + (i % 2) * 0.006, 0.88);
       woodLines.push(line);
       skewerGroup.add(line);
     }
@@ -283,11 +293,11 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
       new THREE.MeshStandardMaterial({ color: '#9f6738', roughness: 0.78 }),
     );
     tip.rotation.x = -Math.PI / 2;
-    tip.position.set(0, -0.82, -1.68);
+    tip.position.set(0, -0.78, -1.16);
     skewerGroup.add(tip);
 
     const mallowPivot = new THREE.Group();
-    mallowPivot.position.set(0, -0.82, -1.32);
+    mallowPivot.position.set(0.34, -0.45, -0.80);
     mallowPivot.scale.set(1.06, 0.94, 0.92);
     skewerGroup.add(mallowPivot);
 
