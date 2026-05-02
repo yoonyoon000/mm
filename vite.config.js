@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   base: './',
   build: {
+    cssTarget: 'chrome80',
     rollupOptions: {
       input: 'build.html',
       output: {
