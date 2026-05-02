@@ -7,11 +7,11 @@ export default defineConfig({
     rollupOptions: {
       input: 'build.html',
       output: {
-        entryFileNames: 'assets/app-pivot.js',
+        entryFileNames: 'assets/app-pov.js',
         chunkFileNames: 'assets/[name].js',
         assetFileNames: (assetInfo) => (
           assetInfo.name && assetInfo.name.endsWith('.css')
-            ? 'assets/app-pivot.css'
+            ? 'assets/app-pov.css'
             : 'assets/[name][extname]'
         ),
       },

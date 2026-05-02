@@ -11,8 +11,7 @@ const MANUAL_ROTATION_SPEED = 1.35;
 const SIDE_HEAT_ANGLE = 90;
 const LOCAL_Z = new THREE.Vector3(0, 0, 1);
 const LOCAL_Y = new THREE.Vector3(0, 1, 0);
-const SKEWER_AXIS = new THREE.Vector3(0.09, 0.26, -1).normalize();
-const MARSHMALLOW_CENTER = new THREE.Vector3(0.05, -0.74, -1.2);
+const MARSHMALLOW_CENTER = new THREE.Vector3(0.25, -0.45, 0);
 const STAGES = [
   { key: 'raw', min: 0, max: 15, label: 'raw', bite: '차갑고 퍽퍽하다...' },
   { key: 'warm', min: 16, max: 35, label: 'warm', bite: '조금 따뜻하다.' },
@@ -50,12 +49,6 @@ function roastColor(level) {
 
 function seeded(index, salt) {
   return Math.abs(Math.sin(index * 37.21 + salt * 11.73) * 43758.5453) % 1;
-}
-
-function axisOffset(axis, amount, yAmount = 0) {
-  const side = new THREE.Vector3().crossVectors(axis, new THREE.Vector3(0, 1, 0)).normalize();
-  const up = new THREE.Vector3().crossVectors(side, axis).normalize();
-  return side.multiplyScalar(amount).add(up.multiplyScalar(yAmount));
 }
 
 function useEffectAudio(soundEnabled) {
@@ -139,8 +132,10 @@ function useEffectAudio(soundEnabled) {
 function makeFacePanel(index) {
   const group = new THREE.Group();
   const faceAngle = THREE.MathUtils.degToRad(FACE_ANGLES[index]);
+  const normal = new THREE.Vector3(Math.cos(faceAngle), Math.sin(faceAngle), 0);
+  const tangent = new THREE.Vector3(-Math.sin(faceAngle), Math.cos(faceAngle), 0);
   const panel = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.86, 0.86, 4, 4),
+    new THREE.PlaneGeometry(0.7, 0.82, 4, 4),
     new THREE.MeshStandardMaterial({
       color: '#fff6e9',
       roughness: 0.88,
@@ -149,8 +144,8 @@ function makeFacePanel(index) {
       side: THREE.FrontSide,
     }),
   );
-  panel.position.set(Math.sin(faceAngle) * 0.47, 0, Math.cos(faceAngle) * 0.47);
-  panel.rotation.y = faceAngle;
+  panel.position.copy(normal.clone().multiplyScalar(0.49));
+  panel.quaternion.setFromUnitVectors(LOCAL_Z, normal);
   group.add(panel);
 
   const spots = [];
@@ -158,7 +153,7 @@ function makeFacePanel(index) {
   for (let i = 0; i < 9; i += 1) {
     const spot = new THREE.Mesh(
       spotGeometry,
-    new THREE.MeshBasicMaterial({
+      new THREE.MeshBasicMaterial({
         color: '#5d2d18',
         transparent: true,
         opacity: 0,
@@ -168,12 +163,8 @@ function makeFacePanel(index) {
     const x = (seeded(i, index) - 0.5) * 0.62;
     const y = (seeded(i + 20, index) - 0.5) * 0.62;
     const scale = 0.025 + seeded(i + 40, index) * 0.07;
-    spot.position.set(
-      Math.sin(faceAngle) * 0.486 + Math.cos(faceAngle) * x,
-      y,
-      Math.cos(faceAngle) * 0.486 - Math.sin(faceAngle) * x,
-    );
-    spot.rotation.y = faceAngle;
+    spot.position.copy(normal.clone().multiplyScalar(0.506).add(tangent.clone().multiplyScalar(x)).add(LOCAL_Z.clone().multiplyScalar(y)));
+    spot.quaternion.setFromUnitVectors(LOCAL_Z, normal);
     spot.scale.set(scale * 1.22, scale * 0.78, 1);
     spots.push(spot);
     group.add(spot);
@@ -211,18 +202,21 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
     renderer.setClearColor(0x050302, 0);
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x070302, 0.18);
+    scene.fog = new THREE.FogExp2(0x070302, 0.1);
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 80);
-    camera.position.set(0.8, 0.5, 3.8);
-    camera.lookAt(0.3, -0.3, 0);
+    camera.position.set(0.7, 0.45, 3.6);
+    camera.lookAt(MARSHMALLOW_CENTER.x + 0.02, MARSHMALLOW_CENTER.y + 0.18, MARSHMALLOW_CENTER.z - 0.05);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-    const fireLight = new THREE.PointLight(0xff7a00, 2);
-    fireLight.position.set(0, 0, 1);
+    scene.add(new THREE.AmbientLight(0xfff4e6, 1.0));
+    const fireLight = new THREE.PointLight(0xff7a00, 3.2, 7, 1.4);
+    fireLight.position.set(0.2, -0.52, -1.7);
     scene.add(fireLight);
-    const fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    fillLight.position.set(2, 2, 3);
+    const fillLight = new THREE.DirectionalLight(0xfffff2, 1.25);
+    fillLight.position.set(2, 1.5, 3.2);
     scene.add(fillLight);
+    const faceLight = new THREE.PointLight(0xfff0d9, 1.4, 4, 2);
+    faceLight.position.set(0.8, 0.2, 2.1);
+    scene.add(faceLight);
 
     const fireVideo = document.createElement('video');
     fireVideo.src = './fire.mp4';
@@ -234,11 +228,11 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
     const fireTexture = new THREE.VideoTexture(fireVideo);
     fireTexture.colorSpace = THREE.SRGBColorSpace;
     const firePlane = new THREE.Mesh(
-      new THREE.PlaneGeometry(6.8, 4.8),
+      new THREE.PlaneGeometry(7.4, 5.2),
       new THREE.MeshBasicMaterial({ map: fireTexture, transparent: true, opacity: 0.9 }),
     );
-    firePlane.position.set(0.12, -0.18, -2.86);
-    firePlane.scale.set(1.2, 1.2, 1);
+    firePlane.position.set(0.08, -0.22, -4.25);
+    firePlane.scale.set(1.35, 1.35, 1);
     scene.add(firePlane);
 
     const glow = new THREE.Mesh(
@@ -251,54 +245,57 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
         depthWrite: false,
       }),
     );
-    glow.position.set(0.12, -0.2, -2.76);
+    glow.position.set(0.08, -0.24, -4.05);
     scene.add(glow);
 
-    const marshmallowPosition = new THREE.Vector3(0.3, -0.4, 0);
-    const skewerBase = new THREE.Vector3(-1.05, -0.95, 1.9);
-    const skewerDirection = new THREE.Vector3().subVectors(marshmallowPosition, skewerBase);
+    const skewerStart = new THREE.Vector3(-0.78, -1.12, 1.62);
+    const skewerEnd = new THREE.Vector3(0.48, -0.32, -1.08);
+    const skewerDirection = new THREE.Vector3().subVectors(skewerEnd, skewerStart);
+    const skewerAxis = skewerDirection.clone().normalize();
     const skewerLength = skewerDirection.length();
-    const skewerCenter = new THREE.Vector3().addVectors(skewerBase, skewerDirection.clone().multiplyScalar(0.5));
-    const skewerQuaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), skewerDirection.clone().normalize());
-
-    const skewerGroup = new THREE.Group();
-    skewerGroup.position.copy(skewerCenter);
-    skewerGroup.quaternion.copy(skewerQuaternion);
-    scene.add(skewerGroup);
+    const skewerCenter = new THREE.Vector3().addVectors(skewerStart, skewerDirection.clone().multiplyScalar(0.5));
+    const skewerQuaternion = new THREE.Quaternion().setFromUnitVectors(LOCAL_Y, skewerAxis);
+    const mallowBaseQuaternion = new THREE.Quaternion().setFromUnitVectors(LOCAL_Z, skewerAxis);
 
     const stick = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.014, 0.02, skewerLength, 18),
+      new THREE.CylinderGeometry(0.012, 0.018, skewerLength, 18),
       new THREE.MeshStandardMaterial({
-        color: '#bd8751',
+        color: '#c99058',
         roughness: 0.76,
         metalness: 0,
       }),
     );
-    skewerGroup.add(stick);
+    stick.position.copy(skewerCenter);
+    stick.quaternion.copy(skewerQuaternion);
+    scene.add(stick);
 
     for (let i = 0; i < 7; i += 1) {
       const line = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.003, 0.004, 0.24, 6),
+        new THREE.CylinderGeometry(0.002, 0.003, skewerLength * 0.66, 6),
         new THREE.MeshStandardMaterial({ color: '#2e170c', roughness: 0.85, metalness: 0 }),
       );
-      line.position.set(0, (i - 3) * 0.32, 0);
-      skewerGroup.add(line);
+      line.position.copy(skewerCenter)
+        .add(new THREE.Vector3(0.004 * (i - 3), 0.003 * (i % 2), 0));
+      line.quaternion.copy(skewerQuaternion);
+      scene.add(line);
     }
 
     const tip = new THREE.Mesh(
       new THREE.ConeGeometry(0.045, 0.18, 18),
       new THREE.MeshStandardMaterial({ color: '#9f6738', roughness: 0.78, metalness: 0 }),
     );
-    tip.position.set(0, skewerLength / 2 - 0.09, 0);
-    skewerGroup.add(tip);
+    tip.position.copy(skewerEnd.clone().add(skewerAxis.clone().multiplyScalar(-0.08)));
+    tip.quaternion.copy(skewerQuaternion);
+    scene.add(tip);
 
     const mallowPivot = new THREE.Group();
-    mallowPivot.position.copy(marshmallowPosition);
-    mallowPivot.scale.set(1.06, 0.94, 0.92);
+    mallowPivot.position.copy(MARSHMALLOW_CENTER);
+    mallowPivot.quaternion.copy(mallowBaseQuaternion);
+    mallowPivot.scale.set(1.16, 1.0, 1.02);
     scene.add(mallowPivot);
 
     const core = new THREE.Mesh(
-      new RoundedBoxGeometry(1.2, 1.1, 1.0, 9, 0.25),
+      new RoundedBoxGeometry(1.18, 1.02, 1.02, 10, 0.26),
       new THREE.MeshStandardMaterial({
         color: '#fff3df',
         roughness: 0.85,
@@ -332,11 +329,12 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
       renderer,
       scene,
       camera,
-      skewerGroup,
       mallowPivot,
+      mallowBaseQuaternion,
       core,
       panels,
       fireLight,
+      faceLight,
       fireTexture,
       fireVideo,
       turn: {
@@ -378,11 +376,12 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
       }
 
       const handNoise = Math.sin(elapsed * 1.7) * 0.008 + Math.sin(elapsed * 3.9) * 0.004;
-      state.mallowPivot.rotation.set(0, 0, turn.auto + turn.current + handNoise);
+      const axialRotation = new THREE.Quaternion().setFromAxisAngle(LOCAL_Z, turn.auto + turn.current + handNoise);
+      state.mallowPivot.quaternion.copy(state.mallowBaseQuaternion).multiply(axialRotation);
       state.mallowPivot.scale.set(
-        1.06 + Math.sin(elapsed * 2.8) * 0.012,
-        0.94 + Math.cos(elapsed * 2.2) * 0.01,
-        0.92 + Math.sin(elapsed * 2.5) * 0.012,
+        1.16 + Math.sin(elapsed * 2.8) * 0.012,
+        1.0 + Math.cos(elapsed * 2.2) * 0.01,
+        1.02 + Math.sin(elapsed * 2.5) * 0.012,
       );
 
       if (eatenRef.current) {
@@ -405,7 +404,8 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
         });
       });
 
-      state.fireLight.intensity = 2.0 + Math.sin(elapsed * 11) * 0.55 + Math.random() * 0.2;
+      state.fireLight.intensity = 3.0 + Math.sin(elapsed * 11) * 0.55 + Math.random() * 0.2;
+      state.faceLight.intensity = 1.1 + Math.sin(elapsed * 5) * 0.08;
       state.fireTexture.needsUpdate = true;
       renderer.render(scene, camera);
       frame = requestAnimationFrame(render);
