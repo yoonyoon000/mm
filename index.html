@@ -8,5 +8,18 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script type="module">
+      const isLocal = ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
+      const hasViteBundle = [...document.scripts].some((script) => script.src.includes('/assets/index-'));
+
+      if (!isLocal && !hasViteBundle) {
+        const css = document.createElement('link');
+        css.rel = 'stylesheet';
+        css.href = './assets/app-mobile.css?v=4876462';
+        document.head.appendChild(css);
+
+        import(/* @vite-ignore */ './assets/app-mobile.js?v=4876462');
+      }
+    </script>
   </body>
 </html>
