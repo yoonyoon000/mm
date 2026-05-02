@@ -6,6 +6,9 @@ import './styles.css';
 
 const FACE_COUNT = 6;
 const FACE_ANGLES = [0, 60, 120, 180, 240, 300];
+const AUTO_ROTATION_SPEED = 0.18;
+const MANUAL_ROTATION_SPEED = 1.35;
+const SIDE_HEAT_ANGLE = 90;
 const STAGES = [
   { key: 'raw', min: 0, max: 15, label: 'raw', bite: '차갑고 퍽퍽하다...' },
   { key: 'warm', min: 16, max: 35, label: 'warm', bite: '조금 따뜻하다.' },
@@ -315,6 +318,7 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
         active: false,
         start: 0,
         duration: 1300,
+        auto: 0,
         from: 0,
         to: 0,
         current: 0,
@@ -338,6 +342,7 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
       const elapsed = now / 1000;
       const delta = state.clock.getDelta();
       const turn = state.turn;
+      turn.auto = (turn.auto + AUTO_ROTATION_SPEED * delta) % (Math.PI * 2);
       if (turn.active) {
         const t = clamp((now - turn.start) / turn.duration, 0, 1);
         turn.current = turn.from + (turn.to - turn.from) * easeOutCubic(t);
@@ -349,9 +354,9 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
 
       const handNoise = Math.sin(elapsed * 1.7) * 0.008 + Math.sin(elapsed * 3.9) * 0.004;
       state.skewerGroup.rotation.set(
-        -0.21 + Math.sin(elapsed * 2.2) * 0.01,
-        turn.current + handNoise,
-        Math.sin(elapsed * 1.3) * 0.012,
+        -0.38 + Math.sin(elapsed * 2.2) * 0.012,
+        turn.auto + turn.current + handNoise,
+        0.16 + Math.sin(elapsed * 1.3) * 0.014,
       );
       state.skewerGroup.position.set(Math.sin(elapsed * 1.8) * 0.012, Math.cos(elapsed * 1.2) * 0.01, 0);
       state.mallowGroup.scale.set(
@@ -414,7 +419,7 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
     state.turn.start = performance.now();
     state.turn.duration = 1180;
     state.turn.from = state.turn.current;
-    state.turn.to = state.turn.current + Math.PI;
+    state.turn.to = state.turn.current + Math.PI / 2.35;
   }, [turnSignal]);
 
   return <canvas className="three-canvas" ref={canvasRef} aria-label="3D marshmallow roasting scene" />;
@@ -459,12 +464,12 @@ function App() {
     const loop = (now) => {
       const delta = Math.min(0.08, (now - last) / 1000);
       last = now;
-      if (isTurning) directionRef.current += (Math.PI / 1180) * delta * 1000;
+      directionRef.current += (AUTO_ROTATION_SPEED + (isTurning ? MANUAL_ROTATION_SPEED : 0)) * delta;
       const degrees = THREE.MathUtils.radToDeg(directionRef.current);
       setFaceRoasts((current) => current.map((level, index) => {
         const facingFire = (FACE_ANGLES[index] + degrees + 360) % 360;
-        const heatWeight = clamp(1 - angleDistance(facingFire, 180) / 105, 0.03, 1);
-        const rate = (isTurning ? 2.1 : 3.6) * heatWeight + 0.08;
+        const heatWeight = clamp(1 - angleDistance(facingFire, SIDE_HEAT_ANGLE) / 105, 0.03, 1);
+        const rate = (isTurning ? 2.4 : 3.7) * heatWeight + 0.08;
         return clamp(level + rate * delta, 0, 100);
       }));
       frame = requestAnimationFrame(loop);

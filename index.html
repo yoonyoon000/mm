@@ -12,10 +12,10 @@
       if (!isLocal) {
         const css = document.createElement('link');
         css.rel = 'stylesheet';
-        css.href = './assets/app-view.css';
+        css.href = './assets/app-angle.css';
         document.head.appendChild(css);
       }
-      import(/* @vite-ignore */ (isLocal ? '/src/main.jsx' : './assets/app-view.js'));
+      import(/* @vite-ignore */ (isLocal ? '/src/main.jsx' : './assets/app-angle.js'));
     </script>
   </body>
 </html>
