@@ -213,19 +213,15 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x070302, 0.18);
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 80);
-    camera.position.set(0.7, 0.45, 3.6);
-    camera.lookAt(0.25, -0.35, 0);
+    camera.position.set(0.8, 0.5, 3.8);
+    camera.lookAt(0.3, -0.3, 0);
 
-    const ambient = new THREE.AmbientLight(0xffead5, 1.08);
-    scene.add(ambient);
-    const fireLight = new THREE.PointLight(0xff7b2d, 4.0, 8, 1.25);
-    fireLight.position.set(0.05, -0.28, -1.82);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+    const fireLight = new THREE.PointLight(0xff7a00, 2);
+    fireLight.position.set(0, 0, 1);
     scene.add(fireLight);
-    const softLight = new THREE.PointLight(0xffd7a0, 2.2, 5.5, 2);
-    softLight.position.set(0.7, 1.25, 1.6);
-    scene.add(softLight);
-    const fillLight = new THREE.DirectionalLight(0xfff3df, 1.65);
-    fillLight.position.set(-1.6, 2.2, 2.8);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    fillLight.position.set(2, 2, 3);
     scene.add(fillLight);
 
     const fireVideo = document.createElement('video');
@@ -258,60 +254,76 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
     glow.position.set(0.12, -0.2, -2.76);
     scene.add(glow);
 
+    const marshmallowPosition = new THREE.Vector3(0.3, -0.4, 0);
+    const skewerBase = new THREE.Vector3(-1.05, -0.95, 1.9);
+    const skewerDirection = new THREE.Vector3().subVectors(marshmallowPosition, skewerBase);
+    const skewerLength = skewerDirection.length();
+    const skewerCenter = new THREE.Vector3().addVectors(skewerBase, skewerDirection.clone().multiplyScalar(0.5));
+    const skewerQuaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), skewerDirection.clone().normalize());
+
     const skewerGroup = new THREE.Group();
+    skewerGroup.position.copy(skewerCenter);
+    skewerGroup.quaternion.copy(skewerQuaternion);
     scene.add(skewerGroup);
-    skewerGroup.position.set(-0.28, -0.39, 0.75);
-    skewerGroup.rotation.set(-0.38, -0.27, 0.12);
 
     const stick = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.014, 0.02, 5.45, 18),
+      new THREE.CylinderGeometry(0.014, 0.02, skewerLength, 18),
       new THREE.MeshStandardMaterial({
         color: '#bd8751',
         roughness: 0.76,
         metalness: 0,
       }),
     );
-    stick.rotation.x = Math.PI / 2;
-    stick.position.set(0, -0.78, 0.82);
-    stick.scale.set(1, 1, 1);
     skewerGroup.add(stick);
 
-    const woodLines = [];
     for (let i = 0; i < 7; i += 1) {
       const line = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.003, 0.004, 3.8, 6),
-        new THREE.MeshBasicMaterial({ color: 0x2e170c }),
+        new THREE.CylinderGeometry(0.003, 0.004, 0.24, 6),
+        new THREE.MeshStandardMaterial({ color: '#2e170c', roughness: 0.85, metalness: 0 }),
       );
-      line.rotation.x = Math.PI / 2;
-      line.position.set((i - 3) * 0.006, -0.78 + (i % 2) * 0.006, 0.88);
-      woodLines.push(line);
+      line.position.set(0, (i - 3) * 0.32, 0);
       skewerGroup.add(line);
     }
 
     const tip = new THREE.Mesh(
-      new THREE.ConeGeometry(0.045, 0.2, 18),
-      new THREE.MeshStandardMaterial({ color: '#9f6738', roughness: 0.78 }),
+      new THREE.ConeGeometry(0.045, 0.18, 18),
+      new THREE.MeshStandardMaterial({ color: '#9f6738', roughness: 0.78, metalness: 0 }),
     );
-    tip.rotation.x = -Math.PI / 2;
-    tip.position.set(0, -0.78, -1.16);
+    tip.position.set(0, skewerLength / 2 - 0.09, 0);
     skewerGroup.add(tip);
 
     const mallowPivot = new THREE.Group();
-    mallowPivot.position.set(0.34, -0.45, -0.80);
+    mallowPivot.position.copy(marshmallowPosition);
     mallowPivot.scale.set(1.06, 0.94, 0.92);
-    skewerGroup.add(mallowPivot);
+    scene.add(mallowPivot);
 
     const core = new THREE.Mesh(
-      new RoundedBoxGeometry(0.96, 0.86, 0.96, 9, 0.24),
+      new RoundedBoxGeometry(1.2, 1.1, 1.0, 9, 0.25),
       new THREE.MeshStandardMaterial({
-        color: '#fff8ec',
-        roughness: 0.9,
+        color: '#fff3df',
+        roughness: 0.85,
         metalness: 0,
         emissive: '#5a2b0d',
         emissiveIntensity: 0.04,
       }),
     );
     mallowPivot.add(core);
+
+    const spotMaterial = new THREE.MeshStandardMaterial({ color: '#6d3b21', roughness: 0.88, metalness: 0 });
+    const spotPositions = [
+      { x: 0.52, y: 0.16, z: 0.12, scale: 1.0 },
+      { x: 0.52, y: -0.08, z: 0.18, scale: 0.9 },
+      { x: 0.52, y: -0.34, z: 0.1, scale: 1.1 },
+      { x: 0.18, y: 0.26, z: 0.26, scale: 0.75 },
+      { x: 0.18, y: -0.16, z: 0.28, scale: 0.85 },
+    ];
+
+    spotPositions.forEach(({ x, y, z, scale }) => {
+      const spot = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 12), spotMaterial);
+      spot.position.set(x, y, z);
+      spot.scale.set(scale, 0.45, scale);
+      mallowPivot.add(spot);
+    });
 
     const panels = FACE_ANGLES.map((_, index) => makeFacePanel(index));
     panels.forEach(({ group }) => mallowPivot.add(group));
@@ -325,7 +337,6 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
       core,
       panels,
       fireLight,
-      softLight,
       fireTexture,
       fireVideo,
       turn: {
@@ -394,8 +405,7 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
         });
       });
 
-      state.fireLight.intensity = 3.7 + Math.sin(elapsed * 11) * 0.55 + Math.random() * 0.2;
-      state.softLight.intensity = 1.8 + clamp(hottest / 100, 0, 1) * 0.45;
+      state.fireLight.intensity = 2.0 + Math.sin(elapsed * 11) * 0.55 + Math.random() * 0.2;
       state.fireTexture.needsUpdate = true;
       renderer.render(scene, camera);
       frame = requestAnimationFrame(render);
