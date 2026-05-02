@@ -163,24 +163,56 @@ function useFireAudio(soundEnabled) {
 
 function FireBackground() {
   const [media, setMedia] = useState('');
+  const [mediaSrc, setMediaSrc] = useState('');
+
+  useEffect(() => {
+    let live = true;
+    const base = import.meta.env.BASE_URL || './';
+    const resolveAsset = (file) => new URL(file, window.location.origin + base).toString();
+
+    async function findMedia() {
+      const candidates = [
+        { type: 'video', url: resolveAsset('fire.mp4') },
+        { type: 'image', url: resolveAsset('fire.jpg') },
+      ];
+
+      for (const candidate of candidates) {
+        try {
+          const response = await fetch(candidate.url, { method: 'HEAD', cache: 'no-store' });
+          if (response.ok && live) {
+            setMedia(candidate.type);
+            setMediaSrc(candidate.url);
+            return;
+          }
+        } catch {
+          // Keep the CSS fire when optional local media is missing.
+        }
+      }
+    }
+
+    findMedia();
+    return () => {
+      live = false;
+    };
+  }, []);
 
   return (
     <div className="background">
-      <video
-        className={`user-fire user-fire-video ${media === 'video' ? 'ready' : ''}`}
-        src="/fire.mp4"
-        autoPlay
-        muted
-        loop
-        playsInline
-        onLoadedData={() => setMedia('video')}
-      />
-      {media !== 'video' && (
+      {media === 'video' && (
+        <video
+          className="user-fire user-fire-video ready"
+          src={mediaSrc}
+          autoPlay
+          muted
+          loop
+          playsInline
+        />
+      )}
+      {media === 'image' && (
         <img
-          className={`user-fire user-fire-image ${media === 'image' ? 'ready' : ''}`}
-          src="/fire.jpg"
+          className="user-fire user-fire-image ready"
+          src={mediaSrc}
           alt=""
-          onLoad={() => setMedia('image')}
         />
       )}
       <div className="dark-camp" />
