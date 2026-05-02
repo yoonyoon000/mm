@@ -8,14 +8,15 @@
   <body>
     <div id="root"></div>
     <script type="module">
+      const version = '20260503-desktop-fallback';
       const isLocal = ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
       if (!isLocal) {
         const css = document.createElement('link');
         css.rel = 'stylesheet';
-        css.href = './assets/app-mobile.css';
+        css.href = `./assets/app-mobile.css?v=${version}`;
         document.head.appendChild(css);
       }
-      import(/* @vite-ignore */ (isLocal ? '/src/main.jsx' : './assets/app-mobile.js'));
+      import(/* @vite-ignore */ (isLocal ? '/src/main.jsx' : `./assets/app-mobile.js?v=${version}`));
     </script>
   </body>
 </html>
