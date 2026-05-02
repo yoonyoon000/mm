@@ -1,21 +1,24 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { RotateCcw, Volume2, VolumeX, RefreshCw, Play } from 'lucide-react';
+import { RotateCcw, Volume2, VolumeX, RefreshCw, Play, Plus, Utensils, Flame } from 'lucide-react';
 import './styles.css';
 
 const STAGES = [
-  { name: 'raw', range: [0, 15], line: 'soft little cloud', color: '#fff8ef' },
-  { name: 'warm', range: [16, 35], line: 'getting sleepy', color: '#fff0cf' },
-  { name: 'golden', range: [36, 60], line: 'tiny gold glow', color: '#ffd978' },
-  { name: 'toasted', range: [61, 80], line: 'cozy freckles', color: '#c98b4f' },
-  { name: 'burnt', range: [81, 95], line: 'crispy edges', color: '#4b281f' },
-  { name: 'ash...', range: [96, 100], line: 'oops, moon rock', color: '#1a171a' },
+  { name: 'raw', label: '생마시멜로우', range: [0, 15], line: '아직 폭신폭신해요', color: '#fff8ef' },
+  { name: 'warm', label: '따끈함', range: [16, 35], line: '조금 말랑해졌어요', color: '#fff0cf' },
+  { name: 'golden', label: '노릇노릇', range: [36, 60], line: '지금 딱 좋아요', color: '#ffd978' },
+  { name: 'toasted', label: '바삭달콤', range: [61, 80], line: '갈색 점이 귀여워요', color: '#c98b4f' },
+  { name: 'burnt', label: '탔어요', range: [81, 95], line: '치익... 조심해요', color: '#4b281f' },
+  { name: 'ash...', label: '재가 됨...', range: [96, 100], line: '까만 달 조각 같아요', color: '#1a171a' },
 ];
 
 const POPUPS = {
-  close: 'too close!',
-  perfect: 'perfect toast',
-  burnt: 'oops burnt',
+  close: '너무 가까워!',
+  perfect: '완벽한 노릇함',
+  burnt: '앗 탔다',
+  eat: '냠',
+  focus: '불멍 모드',
+  add: '하나 더 꽂기',
 };
 
 function getStage(level) {
@@ -40,8 +43,33 @@ function createSpots(seed) {
   });
 }
 
-function useCampfireAudio(soundEnabled, isBurning, stageName) {
+function newMallow(id, x = 51, y = 44) {
+  return {
+    id,
+    toastLevel: 0,
+    x,
+    y,
+    seed: 4 + id * 1.87,
+    eaten: false,
+  };
+}
+
+function getSkewerGeometry(mallow) {
+  const anchorX = mallow.x > 58 ? 106 : mallow.x < 42 ? -6 : 50;
+  const anchorY = 95;
+  const dx = mallow.x - anchorX;
+  const dy = mallow.y - anchorY;
+  return {
+    anchorX,
+    anchorY,
+    length: Math.hypot(dx, dy),
+    angle: Math.atan2(dy, dx) * (180 / Math.PI),
+  };
+}
+
+function useCampfireAudio(soundEnabled, fireIntensity, crackleEnergy) {
   const audioRef = useRef(null);
+  const crackleTimerRef = useRef(0);
 
   const ensureAudio = useCallback(() => {
     if (audioRef.current) return audioRef.current;
@@ -55,7 +83,7 @@ function useCampfireAudio(soundEnabled, isBurning, stageName) {
     const buffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < data.length; i += 1) {
-      data[i] = (Math.random() * 2 - 1) * 0.6;
+      data[i] = (Math.random() * 2 - 1) * 0.48;
     }
     const noise = ctx.createBufferSource();
     noise.buffer = buffer;
@@ -63,7 +91,7 @@ function useCampfireAudio(soundEnabled, isBurning, stageName) {
 
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = 520;
+    filter.frequency.value = 470;
     const fireGain = ctx.createGain();
     fireGain.gain.value = 0;
     noise.connect(filter);
@@ -93,6 +121,29 @@ function useCampfireAudio(soundEnabled, isBurning, stageName) {
     osc.stop(audio.ctx.currentTime + 0.08);
   }, [ensureAudio, soundEnabled]);
 
+  const pop = useCallback((volume = 0.05) => {
+    if (!soundEnabled) return;
+    const audio = ensureAudio();
+    if (!audio) return;
+    audio.ctx.resume();
+    const buffer = audio.ctx.createBuffer(1, Math.floor(audio.ctx.sampleRate * 0.045), audio.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i += 1) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+    }
+    const source = audio.ctx.createBufferSource();
+    source.buffer = buffer;
+    const filter = audio.ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 900 + Math.random() * 900;
+    const gain = audio.ctx.createGain();
+    gain.gain.value = volume;
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(audio.master);
+    source.start();
+  }, [ensureAudio, soundEnabled]);
+
   const sizzle = useCallback(() => {
     if (!soundEnabled) return;
     const audio = ensureAudio();
@@ -107,9 +158,9 @@ function useCampfireAudio(soundEnabled, isBurning, stageName) {
     source.buffer = buffer;
     const filter = audio.ctx.createBiquadFilter();
     filter.type = 'highpass';
-    filter.frequency.value = 1400;
+    filter.frequency.value = 1500;
     const gain = audio.ctx.createGain();
-    gain.gain.value = 0.05;
+    gain.gain.value = 0.045;
     source.connect(filter);
     filter.connect(gain);
     gain.connect(audio.master);
@@ -119,65 +170,135 @@ function useCampfireAudio(soundEnabled, isBurning, stageName) {
   useEffect(() => {
     const audio = ensureAudio();
     if (!audio) return;
-    const target = soundEnabled ? (isBurning ? 0.19 : 0.09) : 0;
+    const target = soundEnabled ? 0.08 + fireIntensity * 0.14 : 0;
     audio.fireGain.gain.setTargetAtTime(target, audio.ctx.currentTime, 0.35);
-    audio.master.gain.setTargetAtTime(stageName === 'ash...' ? 0.07 : 0.12, audio.ctx.currentTime, 0.4);
     if (soundEnabled) audio.ctx.resume();
-  }, [ensureAudio, isBurning, soundEnabled, stageName]);
+  }, [ensureAudio, fireIntensity, soundEnabled]);
 
-  return { ensureAudio, click, sizzle };
+  useEffect(() => {
+    if (!soundEnabled) return undefined;
+    let live = true;
+    const crackle = () => {
+      if (!live) return;
+      pop(0.018 + crackleEnergy * 0.05);
+      const delay = 190 + Math.random() * (620 - crackleEnergy * 260);
+      crackleTimerRef.current = window.setTimeout(crackle, delay);
+    };
+    crackleTimerRef.current = window.setTimeout(crackle, 250);
+    return () => {
+      live = false;
+      window.clearTimeout(crackleTimerRef.current);
+    };
+  }, [crackleEnergy, pop, soundEnabled]);
+
+  return { ensureAudio, click, pop, sizzle };
+}
+
+function Mallow({ mallow, active, autoRotate, rotationTick, onPointerDown }) {
+  const stage = getStage(Math.round(mallow.toastLevel));
+  const stageClass = stage.name.replace(/\W/g, '');
+  const heat = clamp(1 - Math.hypot(mallow.x - 50, mallow.y - 72) / 42, 0, 1);
+  const spots = useMemo(() => createSpots(mallow.seed), [mallow.seed]);
+  const geometry = getSkewerGeometry(mallow);
+  const style = {
+    '--mallow-x': `${mallow.x}%`,
+    '--mallow-y': `${mallow.y}%`,
+    '--anchor-x': `${geometry.anchorX}%`,
+    '--anchor-y': `${geometry.anchorY}%`,
+    '--stick-length': `${geometry.length}%`,
+    '--stick-angle': `${geometry.angle}deg`,
+    '--mallow-color': stage.color,
+    '--spin': `${autoRotate ? rotationTick + mallow.id * 18 : heat * 4}deg`,
+    '--squash': stage.name === 'ash...' ? 0.74 : 1,
+  };
+
+  return (
+    <div className={`stick ${active ? 'active-stick' : ''}`} style={style}>
+      <div className="skewer-line" />
+      <button className={`marshmallow ${stageClass}`} onPointerDown={(event) => onPointerDown(event, mallow.id)} aria-label={`${stage.label} 마시멜로우`}>
+        {spots.map((spot, index) => (
+          <i
+            key={`${mallow.seed}-${index}`}
+            style={{
+              left: spot.left,
+              top: spot.top,
+              width: spot.size,
+              height: spot.size,
+              animationDelay: spot.delay,
+            }}
+          />
+        ))}
+      </button>
+    </div>
+  );
 }
 
 function App() {
   const [started, setStarted] = useState(false);
-  const [toastLevel, setToastLevel] = useState(0);
-  const [position, setPosition] = useState({ x: 51, y: 43 });
+  const [mallows, setMallows] = useState([newMallow(1)]);
+  const [activeId, setActiveId] = useState(1);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [autoRotate, setAutoRotate] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
   const [popupMessage, setPopupMessage] = useState('');
-  const [spotSeed, setSpotSeed] = useState(4);
   const [rotationTick, setRotationTick] = useState(0);
   const sceneRef = useRef(null);
   const dragRef = useRef(false);
-  const levelRef = useRef(0);
+  const mallowsRef = useRef(mallows);
   const popupCooldownRef = useRef(0);
   const lastSizzleRef = useRef(0);
-  const stage = getStage(Math.round(toastLevel));
-  const distance = Math.hypot(position.x - 50, position.y - 72);
-  const heat = clamp(1 - distance / 42, 0, 1);
-  const isBurning = heat > 0.08 && toastLevel < 100;
-  const spots = useMemo(() => createSpots(spotSeed), [spotSeed]);
-  const { ensureAudio, click, sizzle } = useCampfireAudio(soundEnabled, isBurning, stage.name);
+  const activeMallow = mallows.find((mallow) => mallow.id === activeId) ?? mallows[0];
+  const stage = activeMallow ? getStage(Math.round(activeMallow.toastLevel)) : STAGES[0];
+  const activeHeat = activeMallow ? clamp(1 - Math.hypot(activeMallow.x - 50, activeMallow.y - 72) / 42, 0, 1) : 0;
+  const fireIntensity = mallows.reduce((max, mallow) => Math.max(max, clamp(1 - Math.hypot(mallow.x - 50, mallow.y - 72) / 42, 0, 1)), 0);
+  const crackleEnergy = clamp(0.35 + fireIntensity * 0.65 + (focusMode ? 0.22 : 0), 0, 1);
+  const { ensureAudio, click, pop, sizzle } = useCampfireAudio(soundEnabled, fireIntensity, crackleEnergy);
 
-  const showPopup = useCallback((message) => {
+  useEffect(() => {
+    mallowsRef.current = mallows;
+  }, [mallows]);
+
+  const showPopup = useCallback((message, force = false) => {
     const now = performance.now();
-    if (now < popupCooldownRef.current) return;
-    popupCooldownRef.current = now + 5200;
+    if (!force && now < popupCooldownRef.current) return;
+    popupCooldownRef.current = now + 4300;
     setPopupMessage(message);
-    window.setTimeout(() => setPopupMessage(''), 1500);
+    window.setTimeout(() => setPopupMessage(''), 1450);
   }, []);
 
-  const moveToPointer = useCallback((event) => {
+  const moveActiveToPointer = useCallback((event) => {
     const rect = sceneRef.current?.getBoundingClientRect();
+    if (!rect || focusMode) return;
+    const nextX = ((event.clientX - rect.left) / rect.width) * 100;
+    const nextY = ((event.clientY - rect.top) / rect.height) * 100;
+    setMallows((current) => current.map((mallow) => (
+      mallow.id === activeId
+        ? { ...mallow, x: clamp(nextX, 11, 89), y: clamp(nextY, 14, 69) }
+        : mallow
+    )));
+  }, [activeId, focusMode]);
+
+  const startDrag = useCallback((event, id = activeId) => {
+    event.stopPropagation();
+    if (focusMode) return;
+    const rect = sceneRef.current?.getBoundingClientRect();
+    dragRef.current = true;
+    setActiveId(id);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
     if (!rect) return;
     const nextX = ((event.clientX - rect.left) / rect.width) * 100;
     const nextY = ((event.clientY - rect.top) / rect.height) * 100;
-    setPosition({
-      x: clamp(nextX, 13, 87),
-      y: clamp(nextY, 14, 66),
-    });
-  }, []);
-
-  const startDrag = useCallback((event) => {
-    dragRef.current = true;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    moveToPointer(event);
-  }, [moveToPointer]);
+    setMallows((current) => current.map((mallow) => (
+      mallow.id === id
+        ? { ...mallow, x: clamp(nextX, 11, 89), y: clamp(nextY, 14, 69) }
+        : mallow
+    )));
+  }, [activeId, focusMode]);
 
   const drag = useCallback((event) => {
     if (!dragRef.current) return;
-    moveToPointer(event);
-  }, [moveToPointer]);
+    moveActiveToPointer(event);
+  }, [moveActiveToPointer]);
 
   const stopDrag = useCallback(() => {
     dragRef.current = false;
@@ -185,12 +306,44 @@ function App() {
 
   const reset = useCallback(() => {
     click();
-    setToastLevel(0);
-    levelRef.current = 0;
-    setPosition({ x: 51, y: 43 });
+    setMallows([newMallow(1)]);
+    setActiveId(1);
+    setFocusMode(false);
     setPopupMessage('');
-    setSpotSeed((seed) => seed + 1);
   }, [click]);
+
+  const addMallow = useCallback(() => {
+    click();
+    setMallows((current) => {
+      if (current.length >= 4) {
+        showPopup('꼬치는 4개까지', true);
+        return current;
+      }
+      const id = Math.max(...current.map((mallow) => mallow.id), 0) + 1;
+      const x = 34 + current.length * 13;
+      const y = 43 + (current.length % 2) * 8;
+      setActiveId(id);
+      showPopup(POPUPS.add, true);
+      return [...current, newMallow(id, x, y)];
+    });
+  }, [click, showPopup]);
+
+  const eatMallow = useCallback(() => {
+    if (!activeMallow) return;
+    click();
+    pop(0.075);
+    showPopup(POPUPS.eat, true);
+    setMallows((current) => {
+      const next = current.filter((mallow) => mallow.id !== activeId);
+      if (next.length === 0) {
+        const fresh = newMallow(1);
+        setActiveId(1);
+        return [fresh];
+      }
+      setActiveId(next[0].id);
+      return next;
+    });
+  }, [activeId, activeMallow, click, pop, showPopup]);
 
   const toggleSound = useCallback(() => {
     setSoundEnabled((enabled) => !enabled);
@@ -199,14 +352,19 @@ function App() {
     }, 0);
   }, [ensureAudio]);
 
+  const toggleFocus = useCallback(() => {
+    click();
+    setFocusMode((value) => {
+      const next = !value;
+      if (next) showPopup(POPUPS.focus, true);
+      return next;
+    });
+  }, [click, showPopup]);
+
   const enter = useCallback(() => {
     setStarted(true);
     click();
   }, [click]);
-
-  useEffect(() => {
-    levelRef.current = toastLevel;
-  }, [toastLevel]);
 
   useEffect(() => {
     let frame = 0;
@@ -214,47 +372,44 @@ function App() {
     const loop = (now) => {
       const delta = Math.min(0.05, (now - last) / 1000);
       last = now;
-      const currentDistance = Math.hypot(position.x - 50, position.y - 72);
-      const currentHeat = clamp(1 - currentDistance / 42, 0, 1);
-      const closeBoost = currentHeat > 0.72 ? 3.4 : 1;
-      const sweetSpot = currentHeat > 0.35 && currentHeat < 0.62 ? 0.42 : 0;
-      const rotateEase = autoRotate && currentHeat > 0.16 ? 0.8 : 1;
-      const rate = (currentHeat ** 1.7 * 7.2 * closeBoost + sweetSpot) * rotateEase;
-      if (rate > 0.02 && levelRef.current < 100) {
-        const next = clamp(levelRef.current + rate * delta, 0, 100);
-        const previousStage = getStage(Math.round(levelRef.current)).name;
-        const nextStage = getStage(Math.round(next)).name;
-        levelRef.current = next;
-        setToastLevel(next);
+      setMallows((current) => current.map((mallow) => {
+        const currentHeat = clamp(1 - Math.hypot(mallow.x - 50, mallow.y - 72) / 42, 0, 1);
+        const closeBoost = currentHeat > 0.72 ? 3.5 : 1;
+        const sweetSpot = currentHeat > 0.35 && currentHeat < 0.62 ? 0.42 : 0;
+        const rotateEase = autoRotate && currentHeat > 0.16 ? 0.8 : 1;
+        const focusEase = focusMode ? 0.55 : 1;
+        const rate = (currentHeat ** 1.7 * 7.1 * closeBoost + sweetSpot) * rotateEase * focusEase;
+        if (rate <= 0.02 || mallow.toastLevel >= 100) return mallow;
+        const previousStage = getStage(Math.round(mallow.toastLevel)).name;
+        const nextLevel = clamp(mallow.toastLevel + rate * delta, 0, 100);
+        const nextStage = getStage(Math.round(nextLevel)).name;
         if (previousStage !== nextStage) {
-          setSpotSeed((seed) => seed + 0.73);
-          if (nextStage === 'golden') showPopup(POPUPS.perfect);
-          if (nextStage === 'burnt') showPopup(POPUPS.burnt);
-          if (nextStage === 'ash...') showPopup(POPUPS.burnt);
+          if (mallow.id === activeId && nextStage === 'golden') showPopup(POPUPS.perfect);
+          if (mallow.id === activeId && (nextStage === 'burnt' || nextStage === 'ash...')) showPopup(POPUPS.burnt);
         }
-      }
-      if (currentHeat > 0.78 && levelRef.current < 96) showPopup(POPUPS.close);
-      if (currentHeat > 0.78 && levelRef.current > 74 && now - lastSizzleRef.current > 1900) {
-        lastSizzleRef.current = now;
-        sizzle();
+        return {
+          ...mallow,
+          toastLevel: nextLevel,
+          seed: previousStage !== nextStage ? mallow.seed + 0.73 : mallow.seed,
+        };
+      }));
+      const active = mallowsRef.current.find((mallow) => mallow.id === activeId);
+      if (active) {
+        const currentHeat = clamp(1 - Math.hypot(active.x - 50, active.y - 72) / 42, 0, 1);
+        if (currentHeat > 0.78 && active.toastLevel < 96) showPopup(POPUPS.close);
+        if (currentHeat > 0.78 && active.toastLevel > 74 && now - lastSizzleRef.current > 1900) {
+          lastSizzleRef.current = now;
+          sizzle();
+        }
       }
       if (autoRotate) setRotationTick((tick) => tick + delta * 28);
       frame = requestAnimationFrame(loop);
     };
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
-  }, [autoRotate, position, showPopup, sizzle]);
+  }, [activeId, autoRotate, focusMode, showPopup, sizzle]);
 
-  const stageClass = stage.name.replace(/\W/g, '');
-  const roastProgress = `${Math.round(toastLevel)}%`;
-  const marshmallowStyle = {
-    '--mallow-x': `${position.x}%`,
-    '--mallow-y': `${position.y}%`,
-    '--mallow-color': stage.color,
-    '--roast-progress': roastProgress,
-    '--spin': `${autoRotate ? rotationTick : heat * 3}deg`,
-    '--squash': stage.name === 'ash...' ? 0.74 : 1,
-  };
+  const roastProgress = `${Math.round(activeMallow?.toastLevel ?? 0)}%`;
 
   if (!started) {
     return (
@@ -265,7 +420,7 @@ function App() {
         <section className="phone-shell start-shell" aria-label="Start screen">
           <div className="window boot-window">
             <div className="titlebar">
-              <span>MARSHMALLOW.exe</span>
+              <span>스모어 만들기</span>
               <div className="window-controls">
                 <i />
                 <i />
@@ -274,17 +429,17 @@ function App() {
             </div>
             <div className="boot-body">
               <div className="mini-popup">
-                <div className="mini-title">toast wizard</div>
+                <div className="mini-title">smore maker</div>
                 <div className="mallow-icon">□</div>
               </div>
-              <h1>MARSHMALLOW.exe</h1>
-              <p>slowly toast your tiny marshmallow</p>
+              <h1>스모어 만들기</h1>
+              <p>천천히 마시멜로우를 구워요</p>
               <button className="pixel-button start-button" onClick={enter}>
                 <Play size={16} />
                 <span>Start</span>
               </button>
               <div className="loading-window">
-                <span>loading cozy fire</span>
+                <span>cozy fire 준비중</span>
                 <div className="load-track"><i /></div>
               </div>
             </div>
@@ -299,10 +454,10 @@ function App() {
       <div className="stars" />
       <div className="cloud cloud-a" />
       <div className="cloud cloud-b" />
-      <section className="phone-shell app-shell" aria-label="Marshmallow roasting toy">
+      <section className="phone-shell app-shell" aria-label="Smore roasting toy">
         <div className="window app-window">
           <div className="titlebar">
-            <span>MARSHMALLOW.exe</span>
+            <span>스모어 만들기</span>
             <div className="window-controls">
               <i />
               <i />
@@ -310,9 +465,8 @@ function App() {
             </div>
           </div>
           <div
-            className="scene"
+            className={`scene ${focusMode ? 'focus-scene' : ''}`}
             ref={sceneRef}
-            onPointerDown={startDrag}
             onPointerMove={drag}
             onPointerUp={stopDrag}
             onPointerCancel={stopDrag}
@@ -321,25 +475,27 @@ function App() {
             <div className="pixel-stars star-one" />
             <div className="pixel-stars star-two" />
             {popupMessage && <div className="toast-popup">{popupMessage}</div>}
-            <div className="stick" style={marshmallowStyle}>
-              <div className={`marshmallow ${stageClass}`}>
-                {spots.map((spot, index) => (
-                  <i
-                    key={`${spotSeed}-${index}`}
-                    style={{
-                      left: spot.left,
-                      top: spot.top,
-                      width: spot.size,
-                      height: spot.size,
-                      animationDelay: spot.delay,
-                    }}
-                  />
-                ))}
-              </div>
+            <div className="first-person-hands">
+              <span />
+              <span />
             </div>
+            {mallows.map((mallow) => (
+              <Mallow
+                key={mallow.id}
+                mallow={mallow}
+                active={mallow.id === activeId}
+                autoRotate={autoRotate}
+                rotationTick={rotationTick}
+                onPointerDown={startDrag}
+              />
+            ))}
             <div className="campfire" aria-hidden="true">
+              <div className="glow-ring" />
+              <div className="log log-back" />
               <div className="log log-left" />
               <div className="log log-right" />
+              <div className="coal coal-a" />
+              <div className="coal coal-b" />
               <div className="flame flame-back" />
               <div className="flame flame-mid" />
               <div className="flame flame-front" />
@@ -350,21 +506,31 @@ function App() {
           </div>
           <div className="status-panel">
             <div className="readout">
-              <span className="label">status</span>
-              <strong>{stage.name}</strong>
-              <small>{stage.line}</small>
+              <span className="label">상태</span>
+              <strong>{stage.label}</strong>
+              <small>{focusMode ? '꽂아두고 불멍 중...' : stage.line}</small>
             </div>
-            <div className="meter" aria-label={`Toast level ${Math.round(toastLevel)} percent`}>
+            <div className="meter" aria-label={`구움 정도 ${Math.round(activeMallow?.toastLevel ?? 0)}퍼센트`}>
               <span style={{ width: roastProgress }} />
             </div>
-            <div className="controls">
+            <div className="controls primary-controls">
               <button className="pixel-button" onClick={reset}>
                 <RotateCcw size={16} />
-                <span>Reset</span>
+                <span>처음</span>
               </button>
+              <button className="pixel-button" onClick={addMallow}>
+                <Plus size={16} />
+                <span>추가</span>
+              </button>
+              <button className="pixel-button" onClick={eatMallow}>
+                <Utensils size={16} />
+                <span>먹기</span>
+              </button>
+            </div>
+            <div className="controls secondary-controls">
               <button className="pixel-button icon-toggle" onClick={toggleSound} aria-pressed={soundEnabled}>
                 {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-                <span>{soundEnabled ? 'Sound On' : 'Sound Off'}</span>
+                <span>{soundEnabled ? '소리 켬' : '소리 끔'}</span>
               </button>
               <button
                 className="pixel-button icon-toggle"
@@ -375,7 +541,11 @@ function App() {
                 aria-pressed={autoRotate}
               >
                 <RefreshCw size={16} />
-                <span>{autoRotate ? 'Auto On' : 'Auto Off'}</span>
+                <span>{autoRotate ? '회전 켬' : '회전 끔'}</span>
+              </button>
+              <button className="pixel-button icon-toggle" onClick={toggleFocus} aria-pressed={focusMode}>
+                <Flame size={16} />
+                <span>{focusMode ? '불멍 중' : '불멍'}</span>
               </button>
             </div>
           </div>
