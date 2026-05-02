@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import * as THREE from 'three';
-import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import './styles.css';
 
 const SIDE_COUNT = 6;
@@ -38,17 +37,31 @@ function angleDistance(a, b) {
 }
 
 function roastColor(level) {
-  const color = new THREE.Color('#fff6e9');
+  const color = new THREE.Color('#fff3df');
   if (level < 16) return color;
-  if (level < 36) return color.lerp(new THREE.Color('#ffe7b8'), (level - 16) / 20);
-  if (level < 61) return new THREE.Color('#ffe7b8').lerp(new THREE.Color('#d89a4c'), (level - 36) / 25);
-  if (level < 81) return new THREE.Color('#d89a4c').lerp(new THREE.Color('#7a4427'), (level - 61) / 20);
-  if (level < 96) return new THREE.Color('#7a4427').lerp(new THREE.Color('#2b1912'), (level - 81) / 15);
-  return new THREE.Color('#161616');
+  if (level < 36) return color.lerp(new THREE.Color('#ffe7bd'), (level - 16) / 20);
+  if (level < 61) return new THREE.Color('#ffe7bd').lerp(new THREE.Color('#d89a45'), (level - 36) / 25);
+  if (level < 81) return new THREE.Color('#d89a45').lerp(new THREE.Color('#8f5427'), (level - 61) / 20);
+  if (level < 96) return new THREE.Color('#8f5427').lerp(new THREE.Color('#2b160c'), (level - 81) / 15);
+  return new THREE.Color('#111111');
 }
 
-function seeded(index, salt) {
-  return Math.abs(Math.sin(index * 37.21 + salt * 11.73) * 43758.5453) % 1;
+function makeMarshmallowGeometry() {
+  const geometry = new THREE.CylinderGeometry(0.38, 0.38, 0.62, 32, 8, false);
+  const position = geometry.attributes.position;
+  for (let i = 0; i < position.count; i += 1) {
+    const x = position.getX(i);
+    const y = position.getY(i);
+    const z = position.getZ(i);
+    const end = Math.abs(y) / 0.31;
+    const roundedEdge = 1 - Math.pow(clamp(end, 0, 1), 4) * 0.1;
+    const middlePuff = 1 + (1 - clamp(end, 0, 1)) * 0.045;
+    const softUneven = 1 + Math.sin(Math.atan2(z, x) * 3 + y * 9) * 0.012;
+    const radius = roundedEdge * middlePuff * softUneven;
+    position.setXYZ(i, x * radius, y * 0.98, z * radius);
+  }
+  geometry.computeVertexNormals();
+  return geometry;
 }
 
 function useEffectAudio(soundEnabled) {
@@ -130,21 +143,21 @@ function useEffectAudio(soundEnabled) {
 }
 
 function makeBurnMarks() {
-  const markGeometry = new THREE.SphereGeometry(0.045, 14, 10);
+  const markGeometry = new THREE.SphereGeometry(0.04, 14, 10);
   const markData = [
-    { side: 0, u: 0.09, v: 0.16, size: 1.0 },
-    { side: 0, u: -0.11, v: -0.04, size: 0.72 },
-    { side: 1, u: 0.02, v: 0.18, size: 0.9 },
-    { side: 2, u: -0.1, v: -0.13, size: 0.8 },
-    { side: 3, u: 0.08, v: 0.02, size: 0.68 },
-    { side: 4, u: -0.05, v: 0.12, size: 0.78 },
-    { side: 5, u: 0.11, v: -0.1, size: 0.86 },
+    { side: 0, along: 0.14, around: 0.03, size: 1.0 },
+    { side: 0, along: -0.1, around: -0.08, size: 0.74 },
+    { side: 1, along: 0.08, around: 0.04, size: 0.84 },
+    { side: 2, along: -0.12, around: -0.02, size: 0.76 },
+    { side: 3, along: 0.02, around: 0.08, size: 0.68 },
+    { side: 4, along: 0.13, around: -0.04, size: 0.8 },
+    { side: 5, along: -0.06, around: 0.05, size: 0.88 },
   ];
 
-  return markData.map(({ side, u, v, size }) => {
+  return markData.map(({ side, along, around, size }) => {
     const angle = THREE.MathUtils.degToRad(SIDE_ANGLES[side]);
-    const normal = new THREE.Vector3(Math.cos(angle), Math.sin(angle), 0);
-    const tangent = new THREE.Vector3(-Math.sin(angle), Math.cos(angle), 0);
+    const normal = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
+    const tangent = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
     const mark = new THREE.Mesh(
       markGeometry,
       new THREE.MeshStandardMaterial({
@@ -156,12 +169,12 @@ function makeBurnMarks() {
       }),
     );
     mark.position.copy(
-      normal.clone().multiplyScalar(0.37)
-        .add(tangent.clone().multiplyScalar(u))
-        .add(LOCAL_Z.clone().multiplyScalar(v)),
+      normal.clone().multiplyScalar(0.386)
+        .add(tangent.clone().multiplyScalar(around))
+        .add(LOCAL_Y.clone().multiplyScalar(along)),
     );
     mark.quaternion.setFromUnitVectors(LOCAL_Z, normal);
-    mark.scale.set(size * 0.95, size * 0.58, 0.1);
+    mark.scale.set(size * 1.0, size * 0.72, 0.12);
     return { mark, side };
   });
 }
@@ -207,9 +220,9 @@ function ThreeRoaster({ sideRoasts, isEaten, turnSignal, onTurnDone }) {
     const fillLight = new THREE.DirectionalLight(0xfffff2, 1.25);
     fillLight.position.set(2, 1.5, 3.2);
     scene.add(fillLight);
-    const frontLight = new THREE.PointLight(0xfff0d9, 1.4, 4, 2);
-    frontLight.position.set(0.8, 0.2, 2.1);
-    scene.add(frontLight);
+    const fillPoint = new THREE.PointLight(0xfff0d9, 1.4, 4, 2);
+    fillPoint.position.set(0.8, 0.2, 2.1);
+    scene.add(fillPoint);
 
     const fireVideo = document.createElement('video');
     fireVideo.src = './fire.mp4';
@@ -246,7 +259,7 @@ function ThreeRoaster({ sideRoasts, isEaten, turnSignal, onTurnDone }) {
     const skewerLength = skewerDirection.length();
     const skewerCenter = new THREE.Vector3().addVectors(skewerStart, skewerDirection.clone().multiplyScalar(0.5));
     const skewerQuaternion = new THREE.Quaternion().setFromUnitVectors(LOCAL_Y, skewerAxis);
-    const mallowBaseQuaternion = new THREE.Quaternion().setFromUnitVectors(LOCAL_Z, skewerAxis);
+    const mallowBaseQuaternion = new THREE.Quaternion().setFromUnitVectors(LOCAL_Y, skewerAxis);
 
     const stick = new THREE.Mesh(
       new THREE.CylinderGeometry(0.012, 0.018, skewerLength, 18),
@@ -282,17 +295,17 @@ function ThreeRoaster({ sideRoasts, isEaten, turnSignal, onTurnDone }) {
     const mallowPivot = new THREE.Group();
     mallowPivot.position.copy(MARSHMALLOW_CENTER);
     mallowPivot.quaternion.copy(mallowBaseQuaternion);
-    mallowPivot.scale.set(1.05, 0.92, 0.98);
+    mallowPivot.scale.set(1.0, 0.98, 1.03);
     scene.add(mallowPivot);
 
     const core = new THREE.Mesh(
-      new RoundedBoxGeometry(0.72, 0.62, 0.58, 12, 0.18),
+      makeMarshmallowGeometry(),
       new THREE.MeshStandardMaterial({
-        color: '#fff1dc',
+        color: '#fff3df',
         roughness: 0.9,
         metalness: 0,
         emissive: '#2a1206',
-        emissiveIntensity: 0.06,
+        emissiveIntensity: 0.05,
       }),
     );
     mallowPivot.add(core);
@@ -309,7 +322,7 @@ function ThreeRoaster({ sideRoasts, isEaten, turnSignal, onTurnDone }) {
       core,
       marks,
       fireLight,
-      frontLight,
+      fillPoint,
       fireTexture,
       fireVideo,
       turn: {
@@ -351,12 +364,12 @@ function ThreeRoaster({ sideRoasts, isEaten, turnSignal, onTurnDone }) {
       }
 
       const handNoise = Math.sin(elapsed * 1.7) * 0.008 + Math.sin(elapsed * 3.9) * 0.004;
-      const axialRotation = new THREE.Quaternion().setFromAxisAngle(LOCAL_Z, turn.auto + turn.current + handNoise);
+      const axialRotation = new THREE.Quaternion().setFromAxisAngle(LOCAL_Y, turn.auto + turn.current + handNoise);
       state.mallowPivot.quaternion.copy(state.mallowBaseQuaternion).multiply(axialRotation);
       state.mallowPivot.scale.set(
-        1.05 + Math.sin(elapsed * 2.8) * 0.01,
-        0.92 + Math.cos(elapsed * 2.2) * 0.008,
-        0.98 + Math.sin(elapsed * 2.5) * 0.01,
+        1.0 + Math.sin(elapsed * 2.8) * 0.008,
+        0.98 + Math.cos(elapsed * 2.2) * 0.006,
+        1.03 + Math.sin(elapsed * 2.5) * 0.008,
       );
 
       if (eatenRef.current) {
@@ -367,8 +380,8 @@ function ThreeRoaster({ sideRoasts, isEaten, turnSignal, onTurnDone }) {
 
       const hottest = Math.max(...roastsRef.current);
       const avg = roastsRef.current.reduce((sum, value) => sum + value, 0) / roastsRef.current.length;
-      state.core.material.color.copy(roastColor(avg * 0.42));
-      state.core.material.emissiveIntensity = 0.06 + Math.sin(elapsed * 8) * 0.012;
+      state.core.material.color.copy(roastColor(avg));
+      state.core.material.emissiveIntensity = 0.05 + Math.sin(elapsed * 8) * 0.01;
       state.marks.forEach(({ mark, side }) => {
         const roast = roastsRef.current[side];
         mark.material.opacity = clamp((roast - 26) / 44, 0, 0.88);
@@ -376,7 +389,7 @@ function ThreeRoaster({ sideRoasts, isEaten, turnSignal, onTurnDone }) {
       });
 
       state.fireLight.intensity = 3.0 + Math.sin(elapsed * 11) * 0.55 + Math.random() * 0.2;
-      state.frontLight.intensity = 1.1 + Math.sin(elapsed * 5) * 0.08;
+      state.fillPoint.intensity = 1.1 + Math.sin(elapsed * 5) * 0.08;
       state.fireTexture.needsUpdate = true;
       renderer.render(scene, camera);
       frame = requestAnimationFrame(render);
@@ -408,7 +421,7 @@ function ThreeRoaster({ sideRoasts, isEaten, turnSignal, onTurnDone }) {
     state.turn.start = performance.now();
     state.turn.duration = 1180;
     state.turn.from = state.turn.current;
-    state.turn.to = state.turn.current + Math.PI / 2.35;
+    state.turn.to = state.turn.current + Math.PI * 2;
   }, [turnSignal]);
 
   return <canvas className="three-canvas" ref={canvasRef} aria-label="3D marshmallow roasting scene" />;
