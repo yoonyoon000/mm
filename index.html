@@ -12,10 +12,10 @@
       if (!isLocal) {
         const css = document.createElement('link');
         css.rel = 'stylesheet';
-        css.href = './assets/app.css';
+        css.href = './assets/app-three.css';
         document.head.appendChild(css);
       }
-      import(/* @vite-ignore */ (isLocal ? '/src/main.jsx' : './assets/app.js'));
+      import(/* @vite-ignore */ (isLocal ? '/src/main.jsx' : './assets/app-three.js'));
     </script>
   </body>
 </html>
