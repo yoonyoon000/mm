@@ -7,15 +7,6 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="module">
-      const isLocal = ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
-      if (!isLocal) {
-        const css = document.createElement('link');
-        css.rel = 'stylesheet';
-        css.href = './assets/app-mobile.css';
-        document.head.appendChild(css);
-      }
-      import(/* @vite-ignore */ (isLocal ? '/src/main.jsx' : './assets/app-mobile.js'));
-    </script>
+    <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
