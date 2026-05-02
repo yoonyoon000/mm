@@ -7,11 +7,11 @@ export default defineConfig({
     rollupOptions: {
       input: 'build.html',
       output: {
-        entryFileNames: 'assets/app-skewer.js',
+        entryFileNames: 'assets/app-mobile.js',
         chunkFileNames: 'assets/[name].js',
         assetFileNames: (assetInfo) => (
           assetInfo.name && assetInfo.name.endsWith('.css')
-            ? 'assets/app-skewer.css'
+            ? 'assets/app-mobile.css'
             : 'assets/[name][extname]'
         ),
       },
