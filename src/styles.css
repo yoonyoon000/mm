@@ -21,38 +21,26 @@ button {
   font: 14px Arial, Helvetica, sans-serif;
 }
 
+button:disabled {
+  color: #666;
+}
+
 .app {
   position: relative;
   min-height: 100vh;
   min-height: 100dvh;
   overflow: hidden;
-  background: #050302;
+  background:
+    radial-gradient(circle at 50% 58%, rgba(255, 94, 31, 0.24), transparent 34%),
+    #050302;
 }
 
-.background {
+.three-canvas {
   position: absolute;
   inset: 0;
-  overflow: hidden;
-  background: #050302;
-}
-
-.fire-video {
-  position: absolute;
-  inset: 0;
+  display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  filter: brightness(0.82) contrast(1.2) saturate(1.08);
-}
-
-.fire-overlay {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 50% 55%, rgba(255, 160, 56, 0.04), transparent 34%),
-    linear-gradient(180deg, rgba(0,0,0,0.38), transparent 34%, rgba(0,0,0,0.36)),
-    radial-gradient(circle at 50% 50%, transparent 0 36%, rgba(0,0,0,0.44) 78%, rgba(0,0,0,0.72));
-  pointer-events: none;
 }
 
 .status {
@@ -62,147 +50,12 @@ button {
   left: 10px;
   padding: 5px 7px;
   color: #e8e3db;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0,0,0,0.52);
   border: 1px solid rgba(255,255,255,0.22);
   font-family: "Courier New", monospace;
   font-size: 12px;
   line-height: 1.42;
   text-shadow: 1px 1px 0 #000;
-}
-
-.roaster {
-  position: absolute;
-  z-index: 3;
-  left: 50%;
-  bottom: 12%;
-  width: min(96vw, 460px);
-  height: min(72vh, 620px);
-  transform: translateX(-50%);
-  perspective: 850px;
-  pointer-events: none;
-}
-
-.stick {
-  position: absolute;
-  left: 50%;
-  bottom: -56px;
-  width: 10px;
-  height: 104%;
-  transform: translateX(-50%) rotate(-8deg);
-  transform-origin: 50% 100%;
-  border: 1px solid #170c07;
-  border-radius: 7px;
-  background:
-    linear-gradient(90deg, #28130b, #b88955 32%, #623a22 68%, #1c0d06);
-  box-shadow:
-    3px 5px 10px rgba(0,0,0,0.65),
-    0 0 12px rgba(255,142,61,0.18);
-}
-
-.stick::before {
-  position: absolute;
-  left: 50%;
-  top: -14px;
-  width: 20px;
-  height: 20px;
-  content: "";
-  transform: translateX(-50%) rotate(45deg);
-  border-top: 2px solid #180c06;
-  border-left: 2px solid #180c06;
-}
-
-.mallow3d {
-  --spin: 0deg;
-  --squash: 1;
-  position: absolute;
-  left: calc(50% - 35px);
-  top: 28px;
-  width: 104px;
-  height: 104px;
-  transform-style: preserve-3d;
-  transform: rotateX(-9deg) rotateZ(-8deg) rotateY(var(--spin)) scaleY(var(--squash));
-  transition: filter 0.2s linear;
-  filter: drop-shadow(0 18px 18px rgba(0,0,0,0.78));
-}
-
-.mallow3d.wobble {
-  animation: handShake 0.1s linear infinite;
-}
-
-.mallow-core {
-  position: absolute;
-  inset: 0;
-  transform-style: preserve-3d;
-}
-
-.mallow-face {
-  --face-angle: 0deg;
-  --face-color: #fff7ea;
-  position: absolute;
-  left: 12px;
-  top: 0;
-  width: 80px;
-  height: 104px;
-  overflow: hidden;
-  transform: rotateY(var(--face-angle)) translateZ(34px);
-  border: 2px solid rgba(34, 19, 13, 0.72);
-  border-radius: 24px;
-  background:
-    radial-gradient(circle at 34% 20%, rgba(255,255,255,0.65), transparent 24%),
-    linear-gradient(110deg, rgba(255,255,255,0.34), transparent 40%),
-    var(--face-color);
-  box-shadow:
-    inset -11px -9px 0 rgba(0,0,0,0.12),
-    inset 7px 7px 0 rgba(255,255,255,0.18);
-  backface-visibility: visible;
-}
-
-.mallow-face i {
-  position: absolute;
-  display: block;
-  border-radius: 50%;
-  background: #2a1510;
-  transform: rotate(18deg);
-}
-
-.mallow-cap {
-  position: absolute;
-  left: 12px;
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 35% 30%, rgba(255,255,255,0.42), transparent 26%),
-    #f3d8b2;
-  border: 2px solid rgba(34, 19, 13, 0.55);
-  transform-style: preserve-3d;
-}
-
-.top-cap {
-  top: -37px;
-  transform: rotateX(90deg) translateZ(40px);
-}
-
-.bottom-cap {
-  bottom: -37px;
-  transform: rotateX(90deg) translateZ(-64px);
-  filter: brightness(0.78);
-}
-
-.mallow3d.ash {
-  width: 88px;
-  height: 78px;
-  top: 48px;
-  filter: drop-shadow(0 18px 18px rgba(0,0,0,0.78)) saturate(0.38);
-}
-
-.mallow3d.ash .mallow-face {
-  height: 80px;
-  border-radius: 19px;
-}
-
-.eaten .stick {
-  opacity: 0.82;
 }
 
 .message {
@@ -241,18 +94,6 @@ button {
 
 .buttons button:active {
   border-style: inset;
-}
-
-@keyframes handShake {
-  0%, 100% {
-    margin-left: 0;
-    margin-top: 0;
-  }
-
-  50% {
-    margin-left: 5px;
-    margin-top: -2px;
-  }
 }
 
 @media (min-width: 680px) {
