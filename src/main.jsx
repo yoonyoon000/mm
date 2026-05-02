@@ -45,9 +45,8 @@ function seeded(index, salt) {
   return Math.abs(Math.sin(index * 37.21 + salt * 11.73) * 43758.5453) % 1;
 }
 
-function useFireAudio(soundEnabled) {
+function useEffectAudio(soundEnabled) {
   const audioRef = useRef(null);
-  const crackleRef = useRef(0);
 
   const ensureAudio = useCallback(() => {
     if (audioRef.current) return audioRef.current;
@@ -56,27 +55,10 @@ function useFireAudio(soundEnabled) {
 
     const ctx = new AudioContext();
     const master = ctx.createGain();
-    master.gain.value = 0.18;
+    master.gain.value = 0.16;
     master.connect(ctx.destination);
 
-    const buffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < data.length; i += 1) data[i] = (Math.random() * 2 - 1) * 0.58;
-
-    const noise = ctx.createBufferSource();
-    noise.buffer = buffer;
-    noise.loop = true;
-    const low = ctx.createBiquadFilter();
-    low.type = 'lowpass';
-    low.frequency.value = 520;
-    const fireGain = ctx.createGain();
-    fireGain.gain.value = 0;
-    noise.connect(low);
-    low.connect(fireGain);
-    fireGain.connect(master);
-    noise.start();
-
-    audioRef.current = { ctx, master, fireGain };
+    audioRef.current = { ctx, master };
     return audioRef.current;
   }, []);
 
@@ -137,28 +119,6 @@ function useFireAudio(soundEnabled) {
     osc.start();
     osc.stop(audio.ctx.currentTime + 0.2);
   }, [ensureAudio, soundEnabled]);
-
-  useEffect(() => {
-    const audio = ensureAudio();
-    if (!audio) return;
-    audio.fireGain.gain.setTargetAtTime(soundEnabled ? 0.2 : 0, audio.ctx.currentTime, 0.3);
-    if (soundEnabled) audio.ctx.resume();
-  }, [ensureAudio, soundEnabled]);
-
-  useEffect(() => {
-    if (!soundEnabled) return undefined;
-    let live = true;
-    const loop = () => {
-      if (!live) return;
-      noisePop(0.015 + Math.random() * 0.065, 0.025 + Math.random() * 0.08);
-      crackleRef.current = window.setTimeout(loop, 140 + Math.random() * 730);
-    };
-    loop();
-    return () => {
-      live = false;
-      window.clearTimeout(crackleRef.current);
-    };
-  }, [noisePop, soundEnabled]);
 
   return { ensureAudio, bite, whoosh };
 }
@@ -240,9 +200,9 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
 
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x070302, 0.18);
-    const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 80);
-    camera.position.set(0, -1.05, 4.2);
-    camera.lookAt(0, -0.06, 0.08);
+    const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 80);
+    camera.position.set(0, 1.0, 4.35);
+    camera.lookAt(0, -0.72, -0.85);
 
     const ambient = new THREE.AmbientLight(0x3a251b, 0.72);
     scene.add(ambient);
@@ -266,7 +226,7 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
       new THREE.PlaneGeometry(6.4, 4.2),
       new THREE.MeshBasicMaterial({ map: fireTexture, transparent: true, opacity: 0.9 }),
     );
-    firePlane.position.set(0, 0.04, -2.38);
+    firePlane.position.set(0, -0.22, -2.38);
     firePlane.scale.set(1.1, 1.1, 1);
     scene.add(firePlane);
 
@@ -280,7 +240,7 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
         depthWrite: false,
       }),
     );
-    glow.position.set(0, -0.03, -2.28);
+    glow.position.set(0, -0.24, -2.28);
     scene.add(glow);
 
     const skewerGroup = new THREE.Group();
@@ -295,7 +255,7 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
       }),
     );
     stick.rotation.x = Math.PI / 2;
-    stick.position.set(0, -0.82, 1.1);
+    stick.position.set(0, -0.82, 1.08);
     stick.scale.set(1, 1, 1);
     skewerGroup.add(stick);
 
@@ -470,7 +430,8 @@ function App() {
   const rotationRef = useRef(0);
   const directionRef = useRef(0);
   const faceRoastsRef = useRef(faceRoasts);
-  const { ensureAudio, bite, whoosh } = useFireAudio(soundEnabled);
+  const ambientAudioRef = useRef(null);
+  const { ensureAudio, bite, whoosh } = useEffectAudio(soundEnabled);
 
   const toastLevel = useMemo(() => Math.round(faceRoasts.reduce((sum, value) => sum + value, 0) / FACE_COUNT), [faceRoasts]);
   const hottestFace = useMemo(() => Math.max(...faceRoasts), [faceRoasts]);
@@ -479,6 +440,17 @@ function App() {
   useEffect(() => {
     faceRoastsRef.current = faceRoasts;
   }, [faceRoasts]);
+
+  useEffect(() => {
+    const audio = ambientAudioRef.current;
+    if (!audio) return;
+    audio.volume = soundEnabled ? 0.82 : 0;
+    if (soundEnabled) {
+      audio.play().catch(() => setSoundEnabled(false));
+    } else {
+      audio.pause();
+    }
+  }, [soundEnabled]);
 
   useEffect(() => {
     if (isEaten) return undefined;
@@ -539,6 +511,7 @@ function App() {
 
   return (
     <main className="app">
+      <audio ref={ambientAudioRef} src="./campfire.mp3" loop preload="auto" />
       <ThreeRoaster
         faceRoasts={faceRoasts}
         isEaten={isEaten}
