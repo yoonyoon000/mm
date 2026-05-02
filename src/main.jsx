@@ -3,13 +3,16 @@ import { createRoot } from 'react-dom/client';
 import './styles.css';
 
 const STAGES = [
-  { key: 'raw', min: 0, max: 15, color: '#fff7eb', label: 'raw', bite: '차갑고 퍽퍽하다...' },
-  { key: 'warm', min: 16, max: 35, color: '#ffe9bd', label: 'warm', bite: '조금 따뜻하다.' },
-  { key: 'golden', min: 36, max: 60, color: '#e7b45d', label: 'golden', bite: '완벽하게 달다.' },
-  { key: 'toasted', min: 61, max: 80, color: '#9d6037', label: 'toasted', bite: '겉은 바삭하고 속은 말랑하다.' },
-  { key: 'burnt', min: 81, max: 95, color: '#33201a', label: 'burnt', bite: '탄 맛이 난다.' },
-  { key: 'ash', min: 96, max: 100, color: '#111111', label: 'ash', bite: '먹을 수 있는 게 아니다.' },
+  { key: 'raw', min: 0, max: 15, label: 'raw', bite: '차갑고 퍽퍽하다...' },
+  { key: 'warm', min: 16, max: 35, label: 'warm', bite: '조금 따뜻하다.' },
+  { key: 'golden', min: 36, max: 60, label: 'golden', bite: '완벽하게 달다.' },
+  { key: 'toasted', min: 61, max: 80, label: 'toasted', bite: '겉은 바삭하고 속은 말랑하다.' },
+  { key: 'burnt', min: 81, max: 95, label: 'burnt', bite: '탄 맛이 난다.' },
+  { key: 'ash', min: 96, max: 100, label: 'ash', bite: '먹을 수 있는 게 아니다.' },
 ];
+
+const FACE_COUNT = 6;
+const FACE_ANGLES = Array.from({ length: FACE_COUNT }, (_, index) => index * 60);
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -19,255 +22,162 @@ function getStage(level) {
   return STAGES.find((stage) => level >= stage.min && level <= stage.max) ?? STAGES[0];
 }
 
-function spotsFor(level) {
-  const count = level < 20 ? 0 : level < 45 ? 5 : level < 80 ? 10 : 16;
+function angleDistance(a, b) {
+  const diff = Math.abs((((a - b) % 360) + 540) % 360 - 180);
+  return diff;
+}
+
+function faceColor(level) {
+  if (level < 16) return '#fff7ea';
+  if (level < 36) return '#ffe2a9';
+  if (level < 61) return '#d9974c';
+  if (level < 81) return '#8d502e';
+  if (level < 96) return '#2f1b15';
+  return '#0f0f0f';
+}
+
+function faceSpots(level, faceIndex) {
+  const count = level < 24 ? 0 : level < 50 ? 4 : level < 82 ? 7 : 11;
   return Array.from({ length: count }, (_, index) => {
-    const x = Math.abs(Math.sin(index * 41.7 + level * 0.07)) * 100;
-    const y = Math.abs(Math.cos(index * 17.3 + level * 0.05)) * 100;
-    const size = 7 + Math.abs(Math.sin(index * 8.4)) * 18;
+    const x = Math.abs(Math.sin(faceIndex * 19.4 + index * 33.7)) * 100;
+    const y = Math.abs(Math.cos(faceIndex * 13.1 + index * 21.8)) * 100;
+    const size = 6 + Math.abs(Math.sin(index * 5.9 + faceIndex)) * 14;
     return {
-      left: `${14 + (x % 68)}%`,
-      top: `${16 + (y % 56)}%`,
+      left: `${15 + (x % 66)}%`,
+      top: `${13 + (y % 68)}%`,
       width: `${size}px`,
-      height: `${size * (0.7 + (index % 3) * 0.12)}px`,
-      opacity: clamp((level - 18) / 62, 0, 0.88),
+      height: `${size * 0.74}px`,
+      opacity: clamp((level - 22) / 55, 0, 0.9),
     };
   });
 }
 
-function useFireAudio(soundEnabled) {
-  const audioRef = useRef(null);
-  const timerRef = useRef(0);
-
-  const ensureAudio = useCallback(() => {
-    if (audioRef.current) return audioRef.current;
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return null;
-
-    const ctx = new AudioContext();
-    const master = ctx.createGain();
-    master.gain.value = 0.14;
-    master.connect(ctx.destination);
-
-    const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
-    const noiseData = noiseBuffer.getChannelData(0);
-    for (let i = 0; i < noiseData.length; i += 1) {
-      noiseData[i] = (Math.random() * 2 - 1) * 0.5;
-    }
-
-    const noise = ctx.createBufferSource();
-    noise.buffer = noiseBuffer;
-    noise.loop = true;
-
-    const lowpass = ctx.createBiquadFilter();
-    lowpass.type = 'lowpass';
-    lowpass.frequency.value = 620;
-
-    const fireGain = ctx.createGain();
-    fireGain.gain.value = 0;
-    noise.connect(lowpass);
-    lowpass.connect(fireGain);
-    fireGain.connect(master);
-    noise.start();
-
-    audioRef.current = { ctx, master, fireGain };
-    return audioRef.current;
-  }, []);
-
-  const crack = useCallback((volume = 0.05, length = 0.055) => {
-    if (!soundEnabled) return;
-    const audio = ensureAudio();
-    if (!audio) return;
-    audio.ctx.resume();
-
-    const buffer = audio.ctx.createBuffer(1, Math.floor(audio.ctx.sampleRate * length), audio.ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < data.length; i += 1) {
-      data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
-    }
-
-    const source = audio.ctx.createBufferSource();
-    source.buffer = buffer;
-    const filter = audio.ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.value = 700 + Math.random() * 1800;
-    const gain = audio.ctx.createGain();
-    gain.gain.value = volume;
-    source.connect(filter);
-    filter.connect(gain);
-    gain.connect(audio.master);
-    source.start();
-  }, [ensureAudio, soundEnabled]);
-
-  const eatSound = useCallback(() => {
-    if (!soundEnabled) return;
-    const audio = ensureAudio();
-    if (!audio) return;
-    audio.ctx.resume();
-    const osc = audio.ctx.createOscillator();
-    const gain = audio.ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(210, audio.ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(120, audio.ctx.currentTime + 0.12);
-    gain.gain.setValueAtTime(0.08, audio.ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audio.ctx.currentTime + 0.16);
-    osc.connect(gain);
-    gain.connect(audio.master);
-    osc.start();
-    osc.stop(audio.ctx.currentTime + 0.18);
-  }, [ensureAudio, soundEnabled]);
-
-  const whoosh = useCallback(() => {
-    if (!soundEnabled) return;
-    const audio = ensureAudio();
-    if (!audio) return;
-    audio.ctx.resume();
-    crack(0.09, 0.12);
-    const osc = audio.ctx.createOscillator();
-    const gain = audio.ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(460, audio.ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(980, audio.ctx.currentTime + 0.18);
-    gain.gain.setValueAtTime(0.04, audio.ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audio.ctx.currentTime + 0.2);
-    osc.connect(gain);
-    gain.connect(audio.master);
-    osc.start();
-    osc.stop(audio.ctx.currentTime + 0.22);
-  }, [crack, ensureAudio, soundEnabled]);
-
-  useEffect(() => {
-    const audio = ensureAudio();
-    if (!audio) return;
-    audio.fireGain.gain.setTargetAtTime(soundEnabled ? 0.17 : 0, audio.ctx.currentTime, 0.28);
-    if (soundEnabled) audio.ctx.resume();
-  }, [ensureAudio, soundEnabled]);
-
-  useEffect(() => {
-    if (!soundEnabled) return undefined;
-    let live = true;
-    const schedule = () => {
-      if (!live) return;
-      crack(0.018 + Math.random() * 0.06, 0.025 + Math.random() * 0.08);
-      timerRef.current = window.setTimeout(schedule, 180 + Math.random() * 760);
-    };
-    schedule();
-    return () => {
-      live = false;
-      window.clearTimeout(timerRef.current);
-    };
-  }, [crack, soundEnabled]);
-
-  return { ensureAudio, crack, eatSound, whoosh };
+function tinyTone(type) {
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return;
+  const ctx = new AudioContext();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type === 'whoosh' ? 'sawtooth' : 'triangle';
+  osc.frequency.setValueAtTime(type === 'whoosh' ? 180 : 220, ctx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(type === 'whoosh' ? 860 : 120, ctx.currentTime + 0.16);
+  gain.gain.setValueAtTime(type === 'whoosh' ? 0.035 : 0.06, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + 0.22);
 }
 
 function FireBackground() {
-  const [media, setMedia] = useState('');
-  const [mediaSrc, setMediaSrc] = useState('');
-
-  useEffect(() => {
-    let live = true;
-    const base = import.meta.env.BASE_URL || './';
-    const resolveAsset = (file) => new URL(file, window.location.origin + base).toString();
-
-    async function findMedia() {
-      const candidates = [
-        { type: 'video', url: resolveAsset('fire.mp4') },
-        { type: 'image', url: resolveAsset('fire.jpg') },
-      ];
-
-      for (const candidate of candidates) {
-        try {
-          const response = await fetch(candidate.url, { method: 'HEAD', cache: 'no-store' });
-          if (response.ok && live) {
-            setMedia(candidate.type);
-            setMediaSrc(candidate.url);
-            return;
-          }
-        } catch {
-          // Keep the CSS fire when optional local media is missing.
-        }
-      }
-    }
-
-    findMedia();
-    return () => {
-      live = false;
-    };
-  }, []);
-
   return (
     <div className="background">
-      {media === 'video' && (
-        <video
-          className="user-fire user-fire-video ready"
-          src={mediaSrc}
-          autoPlay
-          muted
-          loop
-          playsInline
-        />
-      )}
-      {media === 'image' && (
-        <img
-          className="user-fire user-fire-image ready"
-          src={mediaSrc}
-          alt=""
-        />
-      )}
-      <div className="dark-camp" />
-      <div className="fire-scene" aria-hidden="true">
-        <div className="smoke smoke-a" />
-        <div className="smoke smoke-b" />
-        <div className="fire-glow" />
-        <div className="logs">
-          <span className="log log-a" />
-          <span className="log log-b" />
-          <span className="log log-c" />
-        </div>
-        <div className="coal-bed" />
-        <div className="flame flame-back" />
-        <div className="flame flame-left" />
-        <div className="flame flame-right" />
-        <div className="flame flame-mid" />
-        <div className="flame flame-core" />
-        <div className="spark spark-a" />
-        <div className="spark spark-b" />
-        <div className="spark spark-c" />
+      <video className="fire-video" src="./fire.mp4" autoPlay muted loop playsInline />
+      <div className="fire-overlay" />
+    </div>
+  );
+}
+
+function Marshmallow3D({ faceRoasts, spinAngle, isSpinningFast, isEaten }) {
+  const stage = getStage(Math.max(...faceRoasts));
+  const squash = stage.key === 'ash' ? 0.76 : 1;
+
+  if (isEaten) return null;
+
+  return (
+    <div
+      className={`mallow3d ${stage.key} ${isSpinningFast ? 'wobble' : ''}`}
+      style={{ '--spin': `${spinAngle}deg`, '--squash': squash }}
+    >
+      <div className="mallow-core">
+        {faceRoasts.map((level, index) => (
+          <div
+            className="mallow-face"
+            key={index}
+            style={{
+              '--face-angle': `${FACE_ANGLES[index]}deg`,
+              '--face-color': faceColor(level),
+            }}
+          >
+            {faceSpots(level, index).map((spot, spotIndex) => (
+              <i key={spotIndex} style={spot} />
+            ))}
+          </div>
+        ))}
+        <div className="mallow-cap top-cap" />
+        <div className="mallow-cap bottom-cap" />
       </div>
     </div>
   );
 }
 
 function App() {
-  const [toastLevel, setToastLevel] = useState(0);
+  const [faceRoasts, setFaceRoasts] = useState(Array(FACE_COUNT).fill(0));
+  const [spinAngle, setSpinAngle] = useState(0);
   const [isEaten, setIsEaten] = useState(false);
   const [isSpinningFast, setIsSpinningFast] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [message, setMessage] = useState('');
+  const audioRef = useRef(null);
   const fastTimerRef = useRef(0);
-  const { ensureAudio, eatSound, whoosh } = useFireAudio(soundEnabled);
+  const spinRef = useRef(0);
 
-  const stage = getStage(Math.round(toastLevel));
-  const spots = useMemo(() => spotsFor(toastLevel), [toastLevel]);
+  const toastLevel = useMemo(() => {
+    const sum = faceRoasts.reduce((total, level) => total + level, 0);
+    return Math.round(sum / faceRoasts.length);
+  }, [faceRoasts]);
+  const hottestFace = useMemo(() => Math.max(...faceRoasts), [faceRoasts]);
+  const stage = getStage(Math.max(toastLevel, hottestFace * 0.72));
 
   useEffect(() => {
     if (isEaten) return undefined;
-    const interval = window.setInterval(() => {
-      setToastLevel((level) => clamp(level + (isSpinningFast ? 0.34 : 0.22), 0, 100));
-    }, 160);
-    return () => window.clearInterval(interval);
+    let frame = 0;
+    let last = performance.now();
+
+    const loop = (now) => {
+      const delta = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      const speed = isSpinningFast ? 300 : 34;
+
+      spinRef.current = (spinRef.current + speed * delta) % 360;
+      setSpinAngle(spinRef.current);
+      setFaceRoasts((current) => current.map((level, index) => {
+        const facingFire = (FACE_ANGLES[index] + spinRef.current + 360) % 360;
+        const heatWeight = clamp(1 - angleDistance(facingFire, 180) / 120, 0.05, 1);
+        const rate = (isSpinningFast ? 4.7 : 2.5) * heatWeight + 0.18;
+        return clamp(level + rate * delta, 0, 100);
+      }));
+
+      frame = requestAnimationFrame(loop);
+    };
+
+    frame = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(frame);
   }, [isEaten, isSpinningFast]);
+
+  useEffect(() => {
+    if (!audioRef.current) return;
+    audioRef.current.volume = soundEnabled ? 0.72 : 0;
+    if (soundEnabled) {
+      audioRef.current.play().catch(() => {
+        setSoundEnabled(false);
+      });
+    } else {
+      audioRef.current.pause();
+    }
+  }, [soundEnabled]);
 
   const eat = useCallback(() => {
     if (isEaten) return;
-    eatSound();
+    tinyTone('eat');
     setIsEaten(true);
     setMessage(stage.bite);
-  }, [eatSound, isEaten, stage.bite]);
+  }, [isEaten, stage.bite]);
 
   const reset = useCallback(() => {
-    setToastLevel(0);
+    setFaceRoasts(Array(FACE_COUNT).fill(0));
+    setSpinAngle(0);
+    spinRef.current = 0;
     setIsEaten(false);
     setIsSpinningFast(false);
     setMessage('');
@@ -276,47 +186,39 @@ function App() {
 
   const spinFast = useCallback(() => {
     if (isEaten) return;
-    whoosh();
+    tinyTone('whoosh');
     setIsSpinningFast(true);
-    setMessage('빙글빙글...');
+    setMessage('빠르게 돌리는 중...');
     window.clearTimeout(fastTimerRef.current);
     fastTimerRef.current = window.setTimeout(() => {
       setIsSpinningFast(false);
       setMessage('');
-    }, 1700);
-  }, [isEaten, whoosh]);
+    }, 1800);
+  }, [isEaten]);
 
   const toggleSound = useCallback(() => {
     setSoundEnabled((enabled) => !enabled);
-    window.setTimeout(() => ensureAudio()?.ctx.resume(), 0);
-  }, [ensureAudio]);
+  }, []);
 
   return (
     <main className="app">
       <FireBackground />
+      <audio ref={audioRef} src="./campfire.mp3" loop preload="auto" />
+
       <div className="status">
         <div>status: {stage.label}</div>
-        <div>toast: {Math.round(toastLevel)}%</div>
-        <div>{isEaten ? 'marshmallow: eaten' : 'marshmallow: on stick'}</div>
+        <div>toast: {toastLevel}%</div>
+        <div>hot side: {Math.round(hottestFace)}%</div>
       </div>
 
-      <section className={`roaster ${isSpinningFast ? 'fast' : ''} ${isEaten ? 'eaten' : ''}`}>
+      <section className={`roaster ${isEaten ? 'eaten' : ''}`}>
         <div className="stick" />
-        {!isEaten && (
-          <div
-            className={`mallow ${stage.key}`}
-            style={{
-              '--mallow-color': stage.color,
-              '--squash': stage.key === 'ash' ? 0.72 : 1,
-            }}
-          >
-            <div className="mallow-face">
-              {spots.map((spot, index) => (
-                <i key={index} style={spot} />
-              ))}
-            </div>
-          </div>
-        )}
+        <Marshmallow3D
+          faceRoasts={faceRoasts}
+          spinAngle={spinAngle}
+          isSpinningFast={isSpinningFast}
+          isEaten={isEaten}
+        />
       </section>
 
       <div className="message">{message || ' '}</div>

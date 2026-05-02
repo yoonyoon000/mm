@@ -4,13 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>마시멜로우 불멍</title>
-    <link rel="stylesheet" href="./assets/index-DXSih4RY.css" />
   </head>
   <body>
     <div id="root"></div>
     <script type="module">
       const isLocal = ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
-      import(isLocal ? '/src/main.jsx' : './assets/index-u00g959d.js');
+      if (!isLocal) {
+        const css = document.createElement('link');
+        css.rel = 'stylesheet';
+        css.href = './assets/app.css';
+        document.head.appendChild(css);
+      }
+      import(/* @vite-ignore */ (isLocal ? '/src/main.jsx' : './assets/app.js'));
     </script>
   </body>
 </html>
