@@ -4,8 +4,8 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import './styles.css';
 
-const FACE_COUNT = 6;
-const FACE_ANGLES = [0, 60, 120, 180, 240, 300];
+const SIDE_COUNT = 6;
+const SIDE_ANGLES = [0, 60, 120, 180, 240, 300];
 const AUTO_ROTATION_SPEED = 0.18;
 const MANUAL_ROTATION_SPEED = 1.35;
 const SIDE_HEAT_ANGLE = 90;
@@ -129,61 +129,54 @@ function useEffectAudio(soundEnabled) {
   return { ensureAudio, bite, whoosh };
 }
 
-function makeFacePanel(index) {
-  const group = new THREE.Group();
-  const faceAngle = THREE.MathUtils.degToRad(FACE_ANGLES[index]);
-  const normal = new THREE.Vector3(Math.cos(faceAngle), Math.sin(faceAngle), 0);
-  const tangent = new THREE.Vector3(-Math.sin(faceAngle), Math.cos(faceAngle), 0);
-  const panel = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.7, 0.82, 4, 4),
-    new THREE.MeshStandardMaterial({
-      color: '#fff6e9',
-      roughness: 0.88,
-      metalness: 0,
-      transparent: false,
-      side: THREE.FrontSide,
-    }),
-  );
-  panel.position.copy(normal.clone().multiplyScalar(0.49));
-  panel.quaternion.setFromUnitVectors(LOCAL_Z, normal);
-  group.add(panel);
+function makeBurnMarks() {
+  const markGeometry = new THREE.SphereGeometry(0.045, 14, 10);
+  const markData = [
+    { side: 0, u: 0.09, v: 0.16, size: 1.0 },
+    { side: 0, u: -0.11, v: -0.04, size: 0.72 },
+    { side: 1, u: 0.02, v: 0.18, size: 0.9 },
+    { side: 2, u: -0.1, v: -0.13, size: 0.8 },
+    { side: 3, u: 0.08, v: 0.02, size: 0.68 },
+    { side: 4, u: -0.05, v: 0.12, size: 0.78 },
+    { side: 5, u: 0.11, v: -0.1, size: 0.86 },
+  ];
 
-  const spots = [];
-  const spotGeometry = new THREE.CircleGeometry(1, 14);
-  for (let i = 0; i < 9; i += 1) {
-    const spot = new THREE.Mesh(
-      spotGeometry,
-      new THREE.MeshBasicMaterial({
-        color: '#5d2d18',
+  return markData.map(({ side, u, v, size }) => {
+    const angle = THREE.MathUtils.degToRad(SIDE_ANGLES[side]);
+    const normal = new THREE.Vector3(Math.cos(angle), Math.sin(angle), 0);
+    const tangent = new THREE.Vector3(-Math.sin(angle), Math.cos(angle), 0);
+    const mark = new THREE.Mesh(
+      markGeometry,
+      new THREE.MeshStandardMaterial({
+        color: '#9a5a25',
+        roughness: 0.92,
+        metalness: 0,
         transparent: true,
         opacity: 0,
-        depthWrite: false,
       }),
     );
-    const x = (seeded(i, index) - 0.5) * 0.62;
-    const y = (seeded(i + 20, index) - 0.5) * 0.62;
-    const scale = 0.025 + seeded(i + 40, index) * 0.07;
-    spot.position.copy(normal.clone().multiplyScalar(0.506).add(tangent.clone().multiplyScalar(x)).add(LOCAL_Z.clone().multiplyScalar(y)));
-    spot.quaternion.setFromUnitVectors(LOCAL_Z, normal);
-    spot.scale.set(scale * 1.22, scale * 0.78, 1);
-    spots.push(spot);
-    group.add(spot);
-  }
-
-  return { group, panel, spots };
+    mark.position.copy(
+      normal.clone().multiplyScalar(0.37)
+        .add(tangent.clone().multiplyScalar(u))
+        .add(LOCAL_Z.clone().multiplyScalar(v)),
+    );
+    mark.quaternion.setFromUnitVectors(LOCAL_Z, normal);
+    mark.scale.set(size * 0.95, size * 0.58, 0.1);
+    return { mark, side };
+  });
 }
 
-function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
+function ThreeRoaster({ sideRoasts, isEaten, turnSignal, onTurnDone }) {
   const canvasRef = useRef(null);
   const sceneRef = useRef(null);
-  const roastsRef = useRef(faceRoasts);
+  const roastsRef = useRef(sideRoasts);
   const eatenRef = useRef(isEaten);
   const turnSignalRef = useRef(turnSignal);
   const onTurnDoneRef = useRef(onTurnDone);
 
   useEffect(() => {
-    roastsRef.current = faceRoasts;
-  }, [faceRoasts]);
+    roastsRef.current = sideRoasts;
+  }, [sideRoasts]);
 
   useEffect(() => {
     eatenRef.current = isEaten;
@@ -204,19 +197,19 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x070302, 0.1);
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 80);
-    camera.position.set(0.7, 0.45, 3.6);
-    camera.lookAt(MARSHMALLOW_CENTER.x + 0.02, MARSHMALLOW_CENTER.y + 0.18, MARSHMALLOW_CENTER.z - 0.05);
+    camera.position.set(0.75, 0.38, 4.2);
+    camera.lookAt(0.18, -0.32, 0);
 
-    scene.add(new THREE.AmbientLight(0xfff4e6, 1.0));
+    scene.add(new THREE.AmbientLight(0xfff4e6, 0.72));
     const fireLight = new THREE.PointLight(0xff7a00, 3.2, 7, 1.4);
     fireLight.position.set(0.2, -0.52, -1.7);
     scene.add(fireLight);
     const fillLight = new THREE.DirectionalLight(0xfffff2, 1.25);
     fillLight.position.set(2, 1.5, 3.2);
     scene.add(fillLight);
-    const faceLight = new THREE.PointLight(0xfff0d9, 1.4, 4, 2);
-    faceLight.position.set(0.8, 0.2, 2.1);
-    scene.add(faceLight);
+    const frontLight = new THREE.PointLight(0xfff0d9, 1.4, 4, 2);
+    frontLight.position.set(0.8, 0.2, 2.1);
+    scene.add(frontLight);
 
     const fireVideo = document.createElement('video');
     fireVideo.src = './fire.mp4';
@@ -227,17 +220,15 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
     fireVideo.play().catch(() => {});
     const fireTexture = new THREE.VideoTexture(fireVideo);
     fireTexture.colorSpace = THREE.SRGBColorSpace;
-    const firePlane = new THREE.Mesh(
-      new THREE.PlaneGeometry(7.4, 5.2),
-      new THREE.MeshBasicMaterial({ map: fireTexture, transparent: true, opacity: 0.9 }),
+    const fireSprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({ map: fireTexture, transparent: true, opacity: 0.9 }),
     );
-    firePlane.position.set(0.08, -0.22, -4.25);
-    firePlane.scale.set(1.35, 1.35, 1);
-    scene.add(firePlane);
+    fireSprite.position.set(0.08, -0.22, -4.25);
+    fireSprite.scale.set(9.9, 7.0, 1);
+    scene.add(fireSprite);
 
-    const glow = new THREE.Mesh(
-      new THREE.PlaneGeometry(6.2, 4.0),
-      new THREE.MeshBasicMaterial({
+    const glow = new THREE.Sprite(
+      new THREE.SpriteMaterial({
         color: 0xff6328,
         transparent: true,
         opacity: 0.18,
@@ -291,39 +282,23 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
     const mallowPivot = new THREE.Group();
     mallowPivot.position.copy(MARSHMALLOW_CENTER);
     mallowPivot.quaternion.copy(mallowBaseQuaternion);
-    mallowPivot.scale.set(1.16, 1.0, 1.02);
+    mallowPivot.scale.set(1.05, 0.92, 0.98);
     scene.add(mallowPivot);
 
     const core = new THREE.Mesh(
-      new RoundedBoxGeometry(1.18, 1.02, 1.02, 10, 0.26),
+      new RoundedBoxGeometry(0.72, 0.62, 0.58, 12, 0.18),
       new THREE.MeshStandardMaterial({
-        color: '#fff3df',
-        roughness: 0.85,
+        color: '#fff1dc',
+        roughness: 0.9,
         metalness: 0,
-        emissive: '#5a2b0d',
-        emissiveIntensity: 0.04,
+        emissive: '#2a1206',
+        emissiveIntensity: 0.06,
       }),
     );
     mallowPivot.add(core);
 
-    const spotMaterial = new THREE.MeshStandardMaterial({ color: '#6d3b21', roughness: 0.88, metalness: 0 });
-    const spotPositions = [
-      { x: 0.52, y: 0.16, z: 0.12, scale: 1.0 },
-      { x: 0.52, y: -0.08, z: 0.18, scale: 0.9 },
-      { x: 0.52, y: -0.34, z: 0.1, scale: 1.1 },
-      { x: 0.18, y: 0.26, z: 0.26, scale: 0.75 },
-      { x: 0.18, y: -0.16, z: 0.28, scale: 0.85 },
-    ];
-
-    spotPositions.forEach(({ x, y, z, scale }) => {
-      const spot = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 12), spotMaterial);
-      spot.position.set(x, y, z);
-      spot.scale.set(scale, 0.45, scale);
-      mallowPivot.add(spot);
-    });
-
-    const panels = FACE_ANGLES.map((_, index) => makeFacePanel(index));
-    panels.forEach(({ group }) => mallowPivot.add(group));
+    const marks = makeBurnMarks();
+    marks.forEach(({ mark }) => mallowPivot.add(mark));
 
     const state = {
       renderer,
@@ -332,9 +307,9 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
       mallowPivot,
       mallowBaseQuaternion,
       core,
-      panels,
+      marks,
       fireLight,
-      faceLight,
+      frontLight,
       fireTexture,
       fireVideo,
       turn: {
@@ -379,9 +354,9 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
       const axialRotation = new THREE.Quaternion().setFromAxisAngle(LOCAL_Z, turn.auto + turn.current + handNoise);
       state.mallowPivot.quaternion.copy(state.mallowBaseQuaternion).multiply(axialRotation);
       state.mallowPivot.scale.set(
-        1.16 + Math.sin(elapsed * 2.8) * 0.012,
-        1.0 + Math.cos(elapsed * 2.2) * 0.01,
-        1.02 + Math.sin(elapsed * 2.5) * 0.012,
+        1.05 + Math.sin(elapsed * 2.8) * 0.01,
+        0.92 + Math.cos(elapsed * 2.2) * 0.008,
+        0.98 + Math.sin(elapsed * 2.5) * 0.01,
       );
 
       if (eatenRef.current) {
@@ -392,20 +367,16 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
 
       const hottest = Math.max(...roastsRef.current);
       const avg = roastsRef.current.reduce((sum, value) => sum + value, 0) / roastsRef.current.length;
-      state.core.material.color.copy(roastColor(avg * 0.8));
-      state.core.material.emissiveIntensity = 0.07 + Math.sin(elapsed * 8) * 0.015;
-      state.panels.forEach(({ panel, spots }, index) => {
-        const roast = roastsRef.current[index];
-        panel.material.color.copy(roastColor(roast));
-        spots.forEach((spot, spotIndex) => {
-          const visible = clamp((roast - 22 - spotIndex * 2) / 45, 0, 0.86);
-          spot.material.opacity = visible;
-          spot.material.color.set(roast > 82 ? '#080504' : roast > 58 ? '#24120d' : '#7a3a1d');
-        });
+      state.core.material.color.copy(roastColor(avg * 0.42));
+      state.core.material.emissiveIntensity = 0.06 + Math.sin(elapsed * 8) * 0.012;
+      state.marks.forEach(({ mark, side }) => {
+        const roast = roastsRef.current[side];
+        mark.material.opacity = clamp((roast - 26) / 44, 0, 0.88);
+        mark.material.color.set(roast > 80 ? '#2a1208' : '#9a5a25');
       });
 
       state.fireLight.intensity = 3.0 + Math.sin(elapsed * 11) * 0.55 + Math.random() * 0.2;
-      state.faceLight.intensity = 1.1 + Math.sin(elapsed * 5) * 0.08;
+      state.frontLight.intensity = 1.1 + Math.sin(elapsed * 5) * 0.08;
       state.fireTexture.needsUpdate = true;
       renderer.render(scene, camera);
       frame = requestAnimationFrame(render);
@@ -444,7 +415,7 @@ function ThreeRoaster({ faceRoasts, isEaten, turnSignal, onTurnDone }) {
 }
 
 function App() {
-  const [faceRoasts, setFaceRoasts] = useState(Array(FACE_COUNT).fill(0));
+  const [sideRoasts, setSideRoasts] = useState(Array(SIDE_COUNT).fill(0));
   const [isEaten, setIsEaten] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [message, setMessage] = useState('');
@@ -452,17 +423,17 @@ function App() {
   const [isTurning, setIsTurning] = useState(false);
   const rotationRef = useRef(0);
   const directionRef = useRef(0);
-  const faceRoastsRef = useRef(faceRoasts);
+  const sideRoastsRef = useRef(sideRoasts);
   const ambientAudioRef = useRef(null);
   const { ensureAudio, bite, whoosh } = useEffectAudio(soundEnabled);
 
-  const toastLevel = useMemo(() => Math.round(faceRoasts.reduce((sum, value) => sum + value, 0) / FACE_COUNT), [faceRoasts]);
-  const hottestFace = useMemo(() => Math.max(...faceRoasts), [faceRoasts]);
-  const stage = getStage(Math.max(toastLevel, hottestFace));
+  const toastLevel = useMemo(() => Math.round(sideRoasts.reduce((sum, value) => sum + value, 0) / SIDE_COUNT), [sideRoasts]);
+  const hottestSide = useMemo(() => Math.max(...sideRoasts), [sideRoasts]);
+  const stage = getStage(Math.max(toastLevel, hottestSide));
 
   useEffect(() => {
-    faceRoastsRef.current = faceRoasts;
-  }, [faceRoasts]);
+    sideRoastsRef.current = sideRoasts;
+  }, [sideRoasts]);
 
   useEffect(() => {
     const audio = ambientAudioRef.current;
@@ -484,9 +455,9 @@ function App() {
       last = now;
       directionRef.current += (AUTO_ROTATION_SPEED + (isTurning ? MANUAL_ROTATION_SPEED : 0)) * delta;
       const degrees = THREE.MathUtils.radToDeg(directionRef.current);
-      setFaceRoasts((current) => current.map((level, index) => {
-        const facingFire = (FACE_ANGLES[index] + degrees + 360) % 360;
-        const heatWeight = clamp(1 - angleDistance(facingFire, SIDE_HEAT_ANGLE) / 105, 0.03, 1);
+      setSideRoasts((current) => current.map((level, index) => {
+        const sideAngle = (SIDE_ANGLES[index] + degrees + 360) % 360;
+        const heatWeight = clamp(1 - angleDistance(sideAngle, SIDE_HEAT_ANGLE) / 105, 0.03, 1);
         const rate = (isTurning ? 2.4 : 3.7) * heatWeight + 0.08;
         return clamp(level + rate * delta, 0, 100);
       }));
@@ -504,8 +475,8 @@ function App() {
   }, [bite, isEaten, stage.bite]);
 
   const reset = useCallback(() => {
-    setFaceRoasts(Array(FACE_COUNT).fill(0));
-    faceRoastsRef.current = Array(FACE_COUNT).fill(0);
+    setSideRoasts(Array(SIDE_COUNT).fill(0));
+    sideRoastsRef.current = Array(SIDE_COUNT).fill(0);
     rotationRef.current = 0;
     directionRef.current = 0;
     setIsTurning(false);
@@ -536,7 +507,7 @@ function App() {
     <main className="app">
       <audio ref={ambientAudioRef} src="./campfire.mp3" loop preload="auto" />
       <ThreeRoaster
-        faceRoasts={faceRoasts}
+        sideRoasts={sideRoasts}
         isEaten={isEaten}
         turnSignal={turnSignal}
         onTurnDone={doneTurning}
@@ -545,7 +516,7 @@ function App() {
       <div className="status">
         <div>status: {stage.label}</div>
         <div>toast avg: {toastLevel}%</div>
-        <div>hot side: {Math.round(hottestFace)}%</div>
+        <div>hot side: {Math.round(hottestSide)}%</div>
       </div>
 
       <div className="message">{message || ' '}</div>
