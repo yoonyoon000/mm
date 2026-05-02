@@ -47,16 +47,16 @@ function roastColor(level) {
 }
 
 function makeMarshmallowGeometry() {
-  const geometry = new THREE.CylinderGeometry(0.38, 0.38, 0.62, 32, 8, false);
+  const geometry = new THREE.CylinderGeometry(0.32, 0.32, 0.6, 32, 8, false);
   const position = geometry.attributes.position;
   for (let i = 0; i < position.count; i += 1) {
     const x = position.getX(i);
     const y = position.getY(i);
     const z = position.getZ(i);
-    const end = Math.abs(y) / 0.31;
-    const roundedEdge = 1 - Math.pow(clamp(end, 0, 1), 4) * 0.1;
-    const middlePuff = 1 + (1 - clamp(end, 0, 1)) * 0.045;
-    const softUneven = 1 + Math.sin(Math.atan2(z, x) * 3 + y * 9) * 0.012;
+    const end = Math.abs(y) / 0.3;
+    const roundedEdge = 1 - Math.pow(clamp(end, 0, 1), 4) * 0.08;
+    const middlePuff = 1 + (1 - clamp(end, 0, 1)) * 0.018;
+    const softUneven = 1 + Math.sin(Math.atan2(z, x) * 3 + y * 9) * 0.01;
     const radius = roundedEdge * middlePuff * softUneven;
     position.setXYZ(i, x * radius, y * 0.98, z * radius);
   }
@@ -143,7 +143,7 @@ function useEffectAudio(soundEnabled) {
 }
 
 function makeBurnMarks() {
-  const markGeometry = new THREE.SphereGeometry(0.04, 14, 10);
+  const markGeometry = new THREE.SphereGeometry(0.044, 14, 10);
   const markData = [
     { side: 0, along: 0.14, around: 0.03, size: 1.0 },
     { side: 0, along: -0.1, around: -0.08, size: 0.74 },
@@ -169,7 +169,7 @@ function makeBurnMarks() {
       }),
     );
     mark.position.copy(
-      normal.clone().multiplyScalar(0.386)
+      normal.clone().multiplyScalar(0.326)
         .add(tangent.clone().multiplyScalar(around))
         .add(LOCAL_Y.clone().multiplyScalar(along)),
     );
@@ -252,10 +252,10 @@ function ThreeRoaster({ sideRoasts, isEaten, turnSignal, onTurnDone }) {
     glow.position.set(0.08, -0.24, -4.05);
     scene.add(glow);
 
-    const skewerStart = new THREE.Vector3(-0.78, -1.12, 1.62);
-    const skewerEnd = new THREE.Vector3(0.48, -0.32, -1.08);
+    const skewerStart = new THREE.Vector3(-0.62, -1.02, 1.28);
+    const skewerAxis = new THREE.Vector3().subVectors(MARSHMALLOW_CENTER, skewerStart).normalize();
+    const skewerEnd = MARSHMALLOW_CENTER.clone().add(skewerAxis.clone().multiplyScalar(1.08));
     const skewerDirection = new THREE.Vector3().subVectors(skewerEnd, skewerStart);
-    const skewerAxis = skewerDirection.clone().normalize();
     const skewerLength = skewerDirection.length();
     const skewerCenter = new THREE.Vector3().addVectors(skewerStart, skewerDirection.clone().multiplyScalar(0.5));
     const skewerQuaternion = new THREE.Quaternion().setFromUnitVectors(LOCAL_Y, skewerAxis);
@@ -295,7 +295,7 @@ function ThreeRoaster({ sideRoasts, isEaten, turnSignal, onTurnDone }) {
     const mallowPivot = new THREE.Group();
     mallowPivot.position.copy(MARSHMALLOW_CENTER);
     mallowPivot.quaternion.copy(mallowBaseQuaternion);
-    mallowPivot.scale.set(1.0, 0.98, 1.03);
+    mallowPivot.scale.set(0.96, 1.0, 0.98);
     scene.add(mallowPivot);
 
     const core = new THREE.Mesh(
@@ -367,9 +367,9 @@ function ThreeRoaster({ sideRoasts, isEaten, turnSignal, onTurnDone }) {
       const axialRotation = new THREE.Quaternion().setFromAxisAngle(LOCAL_Y, turn.auto + turn.current + handNoise);
       state.mallowPivot.quaternion.copy(state.mallowBaseQuaternion).multiply(axialRotation);
       state.mallowPivot.scale.set(
-        1.0 + Math.sin(elapsed * 2.8) * 0.008,
-        0.98 + Math.cos(elapsed * 2.2) * 0.006,
-        1.03 + Math.sin(elapsed * 2.5) * 0.008,
+        0.96 + Math.sin(elapsed * 2.8) * 0.006,
+        1.0 + Math.cos(elapsed * 2.2) * 0.005,
+        0.98 + Math.sin(elapsed * 2.5) * 0.006,
       );
 
       if (eatenRef.current) {
@@ -380,12 +380,12 @@ function ThreeRoaster({ sideRoasts, isEaten, turnSignal, onTurnDone }) {
 
       const hottest = Math.max(...roastsRef.current);
       const avg = roastsRef.current.reduce((sum, value) => sum + value, 0) / roastsRef.current.length;
-      state.core.material.color.copy(roastColor(avg));
+      state.core.material.color.copy(roastColor(avg * 0.52));
       state.core.material.emissiveIntensity = 0.05 + Math.sin(elapsed * 8) * 0.01;
       state.marks.forEach(({ mark, side }) => {
         const roast = roastsRef.current[side];
-        mark.material.opacity = clamp((roast - 26) / 44, 0, 0.88);
-        mark.material.color.set(roast > 80 ? '#2a1208' : '#9a5a25');
+        mark.material.opacity = clamp((roast - 8) / 34, 0, 0.94);
+        mark.material.color.set(roast > 52 ? '#2a1208' : '#5e2d16');
       });
 
       state.fireLight.intensity = 3.0 + Math.sin(elapsed * 11) * 0.55 + Math.random() * 0.2;
