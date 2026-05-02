@@ -11,6 +11,7 @@ const SIDE_HEAT_ANGLE = 90;
 const LOCAL_Z = new THREE.Vector3(0, 0, 1);
 const LOCAL_Y = new THREE.Vector3(0, 1, 0);
 const MARSHMALLOW_CENTER = new THREE.Vector3(0.25, -0.45, 0);
+const MARSHMALLOW_OFFSET = new THREE.Vector3(0.02, 0, 0.045);
 const STAGES = [
   { key: 'raw', min: 0, max: 15, label: 'raw', bite: '차갑고 퍽퍽하다...' },
   { key: 'warm', min: 16, max: 35, label: 'warm', bite: '조금 따뜻하다.' },
@@ -173,6 +174,7 @@ function makeBurnMarks() {
         .add(tangent.clone().multiplyScalar(around))
         .add(LOCAL_Y.clone().multiplyScalar(along)),
     );
+    mark.position.add(MARSHMALLOW_OFFSET);
     mark.quaternion.setFromUnitVectors(LOCAL_Z, normal);
     mark.scale.set(size * 1.0, size * 0.72, 0.12);
     return { mark, side };
@@ -252,9 +254,9 @@ function ThreeRoaster({ sideRoasts, isEaten, turnSignal, onTurnDone }) {
     glow.position.set(0.08, -0.24, -4.05);
     scene.add(glow);
 
-    const skewerStart = new THREE.Vector3(-0.62, -1.02, 1.28);
+    const skewerStart = new THREE.Vector3(-0.46, -0.9, 0.96);
     const skewerAxis = new THREE.Vector3().subVectors(MARSHMALLOW_CENTER, skewerStart).normalize();
-    const skewerEnd = MARSHMALLOW_CENTER.clone().add(skewerAxis.clone().multiplyScalar(1.08));
+    const skewerEnd = MARSHMALLOW_CENTER.clone().add(skewerAxis.clone().multiplyScalar(0.52));
     const skewerDirection = new THREE.Vector3().subVectors(skewerEnd, skewerStart);
     const skewerLength = skewerDirection.length();
     const skewerCenter = new THREE.Vector3().addVectors(skewerStart, skewerDirection.clone().multiplyScalar(0.5));
@@ -308,6 +310,7 @@ function ThreeRoaster({ sideRoasts, isEaten, turnSignal, onTurnDone }) {
         emissiveIntensity: 0.05,
       }),
     );
+    core.position.copy(MARSHMALLOW_OFFSET);
     mallowPivot.add(core);
 
     const marks = makeBurnMarks();
@@ -421,7 +424,7 @@ function ThreeRoaster({ sideRoasts, isEaten, turnSignal, onTurnDone }) {
     state.turn.start = performance.now();
     state.turn.duration = 1180;
     state.turn.from = state.turn.current;
-    state.turn.to = state.turn.current + Math.PI * 2;
+    state.turn.to = state.turn.current + Math.PI * 0.78;
   }, [turnSignal]);
 
   return <canvas className="three-canvas" ref={canvasRef} aria-label="3D marshmallow roasting scene" />;
